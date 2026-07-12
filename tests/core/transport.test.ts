@@ -23,7 +23,7 @@ describe('Transport.get', () => {
     const fetchMock = vi.fn(async () => ok('<result/>'))
     const t = makeTransport(fetchMock as unknown as typeof fetch)
     await t.get('agent.xml', { name: 'Ana Souza', 'paging.page': '2', dateTime: '2026-07-12 09:00:00' })
-    const url = fetchMock.mock.calls[0]![0] as unknown as string
+    const [url] = fetchMock.mock.calls[0]! as unknown as [string]
     expect(url).toBe(
       `https://api.umov.me/CenterWeb/api/${API_KEY}/agent.xml?name=Ana%20Souza&paging.page=2&dateTime=2026-07-12%2009%3A00%3A00`,
     )
