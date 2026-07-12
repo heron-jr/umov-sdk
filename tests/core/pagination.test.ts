@@ -40,4 +40,45 @@ describe('hydrateStubs', () => {
     for await (const d of hydrateStubs(stubs(), get, 2)) out.push(d)
     expect(out.map((d) => d.id)).toEqual([1, 2, 3])
   })
+
+  it('propaga erro do get sem deixar rejections órfãs na janela', async () => {
+    const unhandled: unknown[] = []
+    const onUnhandled = (reason: unknown) => unhandled.push(reason)
+    process.on('unhandledRejection', onUnhandled)
+    try {
+      async function* stubs() {
+        yield stub(1)
+        yield stub(2)
+        yield stub(3)
+        yield stub(4)
+      }
+      const get = vi.fn(async (id: number) => {
+        if (id === 2) throw new Error('boom')
+        if (id === 4) {
+          await new Promise((r) => setTimeout(r, 5))
+          throw new Error('late') // rejeição tardia na janela: precisa ser observada
+        }
+        return { id }
+      })
+      await expect(async () => {
+        for await (const d of hydrateStubs(stubs(), get, 3)) void d
+      }).rejects.toThrow('boom')
+      await new Promise((r) => setTimeout(r, 20))
+      expect(unhandled).toEqual([])
+    } finally {
+      process.off('unhandledRejection', onUnhandled)
+    }
+  })
+})
+
+describe('iterateStubs — propagação de erro', () => {
+  it('erro na página N rejeita o for-await com o mesmo erro', async () => {
+    const fetchPage = vi
+      .fn<(p: number) => Promise<ListPage>>()
+      .mockResolvedValueOnce(page(Array.from({ length: 100 }, (_, i) => i + 1)))
+      .mockRejectedValueOnce(new Error('api caiu'))
+    await expect(async () => {
+      for await (const s of iterateStubs(fetchPage)) void s
+    }).rejects.toThrow('api caiu')
+  })
 })

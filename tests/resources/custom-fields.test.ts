@@ -31,6 +31,18 @@ describe('customFields.of(...).list', () => {
   })
 })
 
+describe('customFields.of(...).get', () => {
+  it('lê um campo individual com valor', async () => {
+    const detailXml = `<customField><id>3</id><description>Regiões</description><value>Sul</value></customField>`
+    const { customFields, fetchMock } = make(detailXml)
+    const field = await customFields.of('agent', 1).get({ altId: 'regioes' })
+    expect(String(fetchMock.mock.calls[0]![0])).toContain(
+      '/agent/1/customField/alternativeIdentifier/regioes.xml',
+    )
+    expect(field).toEqual({ id: 3, description: 'Regiões', value: 'Sul' })
+  })
+})
+
 describe('customFields.of(...).setValues', () => {
   it('POSTa customFields com nomes encodados e pipe', async () => {
     const { customFields, fetchMock } = make(writeXml)

@@ -16,6 +16,8 @@ export interface TransportOptions {
   maxRetries?: number
   timeoutMs?: number
   retryBaseMs?: number
+  /** Teto de espera para um Retry-After do servidor (default 60s). */
+  maxRetryDelayMs?: number
   fetch?: typeof fetch
   logger?: (event: UmovLogEvent) => void
 }
@@ -28,6 +30,7 @@ export class Transport {
   private readonly maxRetries: number
   private readonly timeoutMs: number
   private readonly retryBaseMs: number
+  private readonly maxRetryDelayMs: number
   private readonly fetchImpl: typeof fetch
   private readonly logger?: (event: UmovLogEvent) => void
   private readonly limiter: RateLimiter
@@ -38,6 +41,7 @@ export class Transport {
     this.maxRetries = opts.maxRetries ?? 3
     this.timeoutMs = opts.timeoutMs ?? 30_000
     this.retryBaseMs = opts.retryBaseMs ?? 500
+    this.maxRetryDelayMs = opts.maxRetryDelayMs ?? 60_000
     this.fetchImpl = opts.fetch ?? globalThis.fetch
     this.logger = opts.logger
     this.limiter = new RateLimiter(opts.requestsPerSecond ?? 4)
@@ -74,36 +78,44 @@ export class Transport {
       init.body = `data=${encodeURIComponent(body)}`
     }
 
+    // POST não é idempotente na uMov.me (cria E atualiza): falha de rede/timeout após o envio
+    // pode significar requisição já processada — nunca retentar. 429 é seguro (rejeitada antes).
+    const idempotent = method === 'GET' || method === 'DELETE'
+
     for (let attempt = 0; ; attempt++) {
       await this.limiter.acquire()
       this.logger?.({ type: 'request', method, url: redacted, attempt })
 
       let res: Response
+      let text: string
       try {
         res = await this.fetchImpl(url, { ...init, signal: AbortSignal.timeout(this.timeoutMs) })
+        text = await res.text()
       } catch (cause) {
-        if (attempt < this.maxRetries) {
-          await sleep(this.retryBaseMs * 2 ** attempt)
+        if (idempotent && attempt < this.maxRetries) {
           this.logger?.({ type: 'retry', method, url: redacted, attempt })
+          await sleep(this.retryBaseMs * 2 ** attempt)
           continue
         }
-        throw new UmovApiError(0, { method, url: redacted, responseBody: String(cause) }, 'falha de rede/timeout')
+        throw new UmovApiError(0, { method, url: redacted, responseBody: this.redact(String(cause)) }, 'falha de rede/timeout')
       }
 
-      const text = await res.text()
       if (res.ok) return text
 
-      const retryable = res.status === 429 || (res.status === 504 && method === 'GET')
+      const retryable = res.status === 429 || (res.status === 504 && idempotent)
       if (retryable && attempt < this.maxRetries) {
         const retryAfter = Number(res.headers.get('Retry-After'))
-        const wait = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : this.retryBaseMs * 2 ** attempt
+        const wait =
+          Number.isFinite(retryAfter) && retryAfter > 0
+            ? Math.min(retryAfter * 1000, this.maxRetryDelayMs)
+            : this.retryBaseMs * 2 ** attempt
         this.logger?.({ type: 'retry', method, url: redacted, status: res.status, attempt })
         await sleep(wait)
         continue
       }
 
       this.logger?.({ type: 'error', method, url: redacted, status: res.status, attempt })
-      throw errorFromStatus(res.status, { method, url: redacted, responseBody: text })
+      throw errorFromStatus(res.status, { method, url: redacted, responseBody: this.redact(text) })
     }
   }
 

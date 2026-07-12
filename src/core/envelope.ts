@@ -29,12 +29,17 @@ export function parseWriteResponse(xml: string): { resourceName: string; id: num
   }
 }
 
-/** Coerção conservadora: chaves `id` numéricas → number; 'true'/'false' → boolean. */
+/** Flags booleanas documentadas da API — texto livre ('true' digitado num campo) NUNCA vira boolean. */
+const BOOLEAN_KEYS = new Set(['active', 'mandatory', 'responsible'])
+
+/** Coerção conservadora: chave `id` numérica → number; flags conhecidas 'true'/'false' → boolean. */
 function coerceDeep(node: unknown, key?: string): unknown {
   if (typeof node === 'string') {
     if (key === 'id' && /^\d+$/.test(node)) return Number(node)
-    if (node === 'true') return true
-    if (node === 'false') return false
+    if (key !== undefined && BOOLEAN_KEYS.has(key)) {
+      if (node === 'true') return true
+      if (node === 'false') return false
+    }
     return node
   }
   if (Array.isArray(node)) return node.map((n) => coerceDeep(n, key))

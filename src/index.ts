@@ -5,6 +5,11 @@ export type { IterateOptions, ListOptions, Resource } from './core/resource'
 export type { UmovLogEvent } from './core/transport'
 export type { SchedulesResource } from './resources/schedules'
 export type { ActivityHistoriesResource, ActivityHistoryCreate } from './resources/activity-histories'
-export type { CustomFieldOwner, CustomFieldsAccessor, EntityCustomFields } from './resources/custom-fields'
+export type {
+  CustomFieldFilters,
+  CustomFieldOwner,
+  CustomFieldsAccessor,
+  EntityCustomFields,
+} from './resources/custom-fields'
 export * from './resources/types'
 export { formatDate, formatDateTime } from './util/datetime'

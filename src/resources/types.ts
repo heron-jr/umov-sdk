@@ -101,7 +101,12 @@ export interface Schedule {
   situation?: { id?: number; description?: string }
   agent?: { id?: number; name?: string; alternativeIdentifier?: string }
   serviceLocal?: { id?: number; description?: string; alternativeIdentifier?: string }
+  scheduleType?: { id?: number; description?: string; alternativeIdentifier?: string }
   activitiesOrigin?: string
+  /** Atividades vinculadas — presentes só na resposta de detalhe (doc uMov.me). */
+  activityRelationship?: unknown
+  customFields?: unknown
+  [key: string]: unknown
 }
 export interface ScheduleCreate {
   agent: RelationRef

@@ -47,4 +47,24 @@ describe('parseDetailResponse', () => {
   it('lança se a raiz esperada não existe', () => {
     expect(() => parseDetailResponse('<other/>', 'agent')).toThrow(/agent/)
   })
+
+  it('alternativeIdentifier numérico permanece string (zeros à esquerda preservados)', () => {
+    const xml = `<agent><id>12</id><alternativeIdentifier>00123</alternativeIdentifier></agent>`
+    expect(parseDetailResponse(xml, 'agent')).toEqual({ id: 12, alternativeIdentifier: '00123' })
+  })
+
+  it("texto livre 'true'/'false' permanece string — só flags conhecidas viram boolean", () => {
+    const xml = `<activityHistory><id>1</id><observation>false</observation><value>true</value><active>true</active></activityHistory>`
+    expect(parseDetailResponse(xml, 'activityHistory')).toEqual({
+      id: 1,
+      observation: 'false',
+      value: 'true',
+      active: true,
+    })
+  })
+
+  it('escrita sem resourceId e lista sem result lançam erro claro', () => {
+    expect(() => parseWriteResponse('<result><resourceName>x</resourceName></result>')).toThrow(/resourceId/)
+    expect(() => parseListResponse('<foo/>')).toThrow(/result/)
+  })
 })

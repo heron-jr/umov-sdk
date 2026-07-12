@@ -38,7 +38,7 @@ export function filtersToQuery(filters: Record<string, unknown>): Record<string,
 
 export interface Resource<TDetail, TCreate, TUpdate, TFilters> {
   list(filters?: TFilters, opts?: ListOptions): Promise<ListPage>
-  iterate(filters?: TFilters, opts?: IterateOptions & { hydrate: true }): AsyncGenerator<TDetail>
+  iterate(filters: TFilters | undefined, opts: IterateOptions & { hydrate: true }): AsyncGenerator<TDetail>
   iterate(filters?: TFilters, opts?: IterateOptions): AsyncGenerator<ListStub>
   get(ref: EntityRef): Promise<TDetail>
   create(payload: TCreate): Promise<{ id: number }>
@@ -61,7 +61,7 @@ export function defineResource<TDetail, TCreate, TUpdate, TFilters extends Recor
   const get = async (ref: EntityRef): Promise<TDetail> =>
     parseDetailResponse<TDetail>(await transport.get(`${path}/${refToPath(ref)}.xml`), rootName)
 
-  function iterate(filters?: TFilters, opts?: IterateOptions & { hydrate: true }): AsyncGenerator<TDetail>
+  function iterate(filters: TFilters | undefined, opts: IterateOptions & { hydrate: true }): AsyncGenerator<TDetail>
   function iterate(filters?: TFilters, opts?: IterateOptions): AsyncGenerator<ListStub>
   function iterate(
     filters?: TFilters,

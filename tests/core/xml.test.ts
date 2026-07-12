@@ -35,6 +35,19 @@ describe('serializeEntity', () => {
     )
   })
 
+  it("divide ']]>' em seções CDATA adjacentes e faz round-trip", () => {
+    const xml = serializeEntity('item', { description: 'a]]>b' })
+    expect(xml).toBe('<item><description><![CDATA[a]]]]><![CDATA[>b]]></description></item>')
+    expect(parseXml(xml)).toEqual({ item: { description: 'a]]>b' } })
+  })
+
+  it("não permite injeção de elementos via ']]>' no valor", () => {
+    const xml = serializeEntity('item', { description: 'x]]><active>false</active>' })
+    const parsed = parseXml(xml) as { item: { description: string; active?: unknown } }
+    expect(parsed.item.description).toBe('x]]><active>false</active>')
+    expect(parsed.item.active).toBeUndefined()
+  })
+
   it('serializa arrays de objetos como elementos repetidos', () => {
     expect(
       serializeEntity('schedules', { schedule: [{ id: 1 }, { id: 2 }] }),

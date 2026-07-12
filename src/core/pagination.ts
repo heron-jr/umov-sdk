@@ -21,9 +21,15 @@ export async function* hydrateStubs<T>(
   prefetch = 4,
 ): AsyncGenerator<T> {
   const window: Promise<T>[] = []
-  for await (const stub of stubs) {
-    window.push(get(stub.id))
-    if (window.length >= prefetch) yield await window.shift()!
+  try {
+    for await (const stub of stubs) {
+      window.push(get(stub.id))
+      if (window.length >= prefetch) yield await window.shift()!
+    }
+    while (window.length > 0) yield await window.shift()!
+  } finally {
+    // Ao abortar (erro ou return antecipado), observa as promises restantes da janela
+    // para não derrubar o processo com unhandledRejection.
+    await Promise.allSettled(window)
   }
-  while (window.length > 0) yield await window.shift()!
 }

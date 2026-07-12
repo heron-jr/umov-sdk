@@ -14,7 +14,10 @@ export interface ActivityHistoryCreate {
 export interface ActivityHistoriesResource {
   /** Sem filtro de data a API retorna só os últimos 7 dias. */
   list(filters?: ActivityHistoryFilters, opts?: ListOptions): Promise<ListPage>
-  iterate(filters?: ActivityHistoryFilters, opts?: IterateOptions & { hydrate: true }): AsyncGenerator<ActivityHistory>
+  iterate(
+    filters: ActivityHistoryFilters | undefined,
+    opts: IterateOptions & { hydrate: true },
+  ): AsyncGenerator<ActivityHistory>
   iterate(filters?: ActivityHistoryFilters, opts?: IterateOptions): AsyncGenerator<ListStub>
   get(ref: EntityRef): Promise<ActivityHistory>
   /** Árvore completa activity>sections>items>fields>geo — a base para gerar laudos. */

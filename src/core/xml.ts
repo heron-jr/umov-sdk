@@ -20,7 +20,9 @@ const NEEDS_CDATA = /[<>&%\n\r]/
 function serializeValue(value: string | number | boolean): string {
   if (typeof value !== 'string') return String(value)
   if (!NEEDS_CDATA.test(value)) return value
-  return `<![CDATA[${encodeText(value)}]]>`
+  // ']]>' fecharia a seção CDATA prematuramente: divide em seções adjacentes (']]' + '>').
+  const escaped = encodeText(value).replace(/]]>/g, ']]]]><![CDATA[>')
+  return `<![CDATA[${escaped}]]>`
 }
 
 type Scalar = string | number | boolean
