@@ -79,6 +79,7 @@ export function defineResource<TDetail, TCreate, TUpdate, TFilters extends Recor
     async create(payload: TCreate): Promise<{ id: number }> {
       const xml = serializeEntity(rootName, payload as Record<string, unknown>)
       const res = parseWriteResponse(await transport.post(`${path}.xml`, xml))
+      if (res.id === undefined) throw new Error(`Create de ${path} respondeu sem <resourceId>`)
       return { id: res.id }
     },
     async update(ref: EntityRef, payload: TUpdate): Promise<void> {

@@ -182,20 +182,22 @@ Parsers puros dos dois formatos do callback de tarefas (XML: schedule.altId + id
 
 ## 7. Riscos e pontos a validar contra a API real
 
-A doc tem lacunas/typos. Decisões tomadas e o que confirmar na Fase 1 com token de homolog:
+A doc tem lacunas/typos. **Validação executada em 2026-07-12 contra o ambiente `laivon`** (bateria em `tests/integration/api.itest.ts`):
 
-| # | Ponto | Decisão provisória |
+| # | Ponto | Resultado |
 |---|---|---|
-| R1 | Host canônico (api.umov.me vs center.umov.me vs octacx) | `api.umov.me` default; `baseUrl` configurável |
-| R2 | POST `data=` form-encoded vs XML cru | `data=` (validado em produção no crawler-umov) |
+| R1 | Host canônico (api.umov.me vs center.umov.me vs octacx) | **✅ VALIDADO**: `api.umov.me` funciona (200); token inválido → 401 |
+| R2 | POST `data=` form-encoded vs XML cru | **✅ VALIDADO**: `data=` funciona para create (201) e update (200) |
 | R3 | Suporte JSON parcial (.json em 3 entidades) | ignorar; XML universal |
-| R4 | `paging.page` vale para todas as listas? | assumir que sim |
-| R5 | `<size>` = tamanho da página (não total) | assumir página; parada em `<100` |
-| R6 | POST em coleção com altId existente: upsert ou erro? | tratar como incerto; recomendar batch p/ upsert |
-| R7 | Formato do corpo de erro XML | preservar cru em `responseBody` |
-| R8 | Schema do `POST /token.xml` | implementar em Fase 2 após confirmar |
+| R4 | `paging.page` vale para todas as listas? | **✅ VALIDADO** em agent/schedule/serviceLocal/item |
+| R5 | `<size>` = tamanho da página (não total) | **✅ VALIDADO**: size é da página (p1=100, p2=50 em schedule); parada em `<100` correta |
+| R6 | POST em coleção com altId existente: upsert ou erro? | **✅ VALIDADO**: **erro 400** `alternativeIdentifierAlreadyInUse` — create NÃO é upsert; para upsert usar batch |
+| R7 | Formato do corpo de erro XML | **✅ DESCOBERTO**: `<result><statusCode/><errors>msg;</errors><resourceName/></result>` — SDK expõe em `UmovApiError.apiErrors` |
+| R8 | Schema do `POST /token.xml` | pendente (exige login/senha, não disponíveis) — `fromCredentials` adiado |
 | R9 | Master data sem DELETE | confirmado pela doc; SDK não expõe |
-| R10 | Typos em paths (group/itemCategory/section por altId) | usar forma canônica `/alternativeIdentifier/{altId}.xml`; testar |
+| R10 | Typos em paths (group/itemCategory/section por altId) | **✅ VALIDADO**: forma canônica `/alternativeIdentifier/{altId}.xml` funciona (group por altId 200) |
+
+**Descoberta extra da validação**: update por altId responde `<resourceAlternativeId>` em vez de `<resourceId>` — `parseWriteResponse` aceita ambos.
 | R11 | Batches além dos 12 documentados | expor só os documentados |
 | R12 | 429: duração do bloqueio / Retry-After | backoff exponencial; respeitar Retry-After se vier |
 | R13 | Cobertura real dos filtros de lista | filtros tipados + `raw` escape hatch |
