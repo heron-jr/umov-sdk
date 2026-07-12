@@ -193,7 +193,7 @@ A doc tem lacunas/typos. **Validação executada em 2026-07-12 contra o ambiente
 | R5 | `<size>` = tamanho da página (não total) | **✅ VALIDADO**: size é da página (p1=100, p2=50 em schedule); parada em `<100` correta |
 | R6 | POST em coleção com altId existente: upsert ou erro? | **✅ VALIDADO**: **erro 400** `alternativeIdentifierAlreadyInUse` — create NÃO é upsert; para upsert usar batch |
 | R7 | Formato do corpo de erro XML | **✅ DESCOBERTO**: `<result><statusCode/><errors>msg;</errors><resourceName/></result>` — SDK expõe em `UmovApiError.apiErrors` |
-| R8 | Schema do `POST /token.xml` | pendente (exige login/senha, não disponíveis) — `fromCredentials` adiado |
+| R8 | Schema do `POST /token.xml` | **✅ VALIDADO** (2026-07-12, credenciais do ambiente laivon): corpo `data=` form-encoded com `<apiToken><login/><password/><domain/></apiToken>`; token retorna em `<result><message>`; credencial errada → 401 `<error>` (singular). `UmovClient.fromCredentials` implementado |
 | R9 | Master data sem DELETE | confirmado pela doc; SDK não expõe |
 | R10 | Typos em paths (group/itemCategory/section por altId) | **✅ VALIDADO**: forma canônica `/alternativeIdentifier/{altId}.xml` funciona (group por altId 200) |
 

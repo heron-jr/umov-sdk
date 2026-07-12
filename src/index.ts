@@ -1,4 +1,5 @@
-export { UmovClient, type UmovClientOptions } from './client'
+export { UmovClient, type UmovClientCredentialsOptions, type UmovClientOptions } from './client'
+export { getToken, type TokenCredentials } from './core/token'
 export * from './core/errors'
 export type { EntityRef, ListPage, ListStub, RelationRef } from './core/types'
 export type { BatchOptions, IterateOptions, ListOptions, Resource } from './core/resource'

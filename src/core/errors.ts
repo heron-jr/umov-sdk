@@ -5,9 +5,12 @@ export interface UmovErrorContext {
   responseBody: string
 }
 
-/** Extrai a mensagem do envelope de erro real da API: <result><statusCode/><errors>msg;</errors></result>. */
+/**
+ * Extrai a mensagem do envelope de erro real da API: <result><statusCode/><errors>msg;</errors></result>.
+ * O endpoint de token usa <error> no singular — ambos são aceitos.
+ */
 function extractApiErrors(body: string): string | undefined {
-  const match = /<errors>([^<]*)<\/errors>/.exec(body)
+  const match = /<errors?>([^<]*)<\/errors?>/.exec(body)
   return match?.[1]?.trim() || undefined
 }
 

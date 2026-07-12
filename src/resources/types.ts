@@ -319,11 +319,12 @@ export interface Team {
 }
 export interface TeamCreate {
   description: string
-  teamType: RelationRef
+  /** A API só resolve esta relação por id interno (altId retorna nonExistingId — validado contra o ambiente real). */
+  teamType: { id: number }
   alternativeIdentifier?: string
   active?: boolean
-  /** ATENÇÃO: em update, este bloco SUBSTITUI todos os membros existentes. */
-  agentRelationship?: { agent: Array<{ id: number; responsible?: boolean }> }
+  /** ATENÇÃO: em update, este bloco SUBSTITUI todos os membros existentes. Prefira addMember/removeMember. */
+  agentRelationship?: { agentTeam: Array<{ agent: { id: number }; responsible?: boolean }> }
 }
 export type TeamUpdate = Partial<TeamCreate>
 

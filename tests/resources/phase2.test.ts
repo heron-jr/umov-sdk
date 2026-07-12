@@ -82,13 +82,13 @@ describe('client — wiring dos recursos das Fases 2+3', () => {
 })
 
 describe('teams — membros', () => {
-  it('addMember POSTa agent com responsible no sub-path', async () => {
+  it('addMember POSTa o wrapper agentTeam por id interno (schema validado contra a API real)', async () => {
     const { transport, fetchMock } = makeTransport()
     const teams = createTeamsResource(transport)
-    await teams.addMember({ altId: 'EQ-1' }, 42, { responsible: true })
+    await teams.addMember(1368405, 42, { responsible: true })
     const { url, body } = lastCall(fetchMock)
-    expect(url).toContain('/team/alternativeIdentifier/EQ-1/agent.xml')
-    expect(body).toBe('<agent><id>42</id><responsible>true</responsible></agent>')
+    expect(url).toContain('/team/1368405/agent.xml')
+    expect(body).toBe('<agentTeam><agent><id>42</id></agent><responsible>true</responsible></agentTeam>')
   })
 
   it('removeMember faz DELETE no vínculo', async () => {

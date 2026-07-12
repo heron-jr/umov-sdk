@@ -92,7 +92,18 @@ import { parseCallbackXml, parseCallbackJson } from '@laivon/umov-sdk/webhook'
 
 Parsers puros das duas variantes do callback de tarefas. Fluxo típico: callback chega → `parseCallbackXml(body)` → `activityHistories.hierarchical(id)` → gerar laudo.
 
-## Pendências conhecidas
+## Autenticação por credenciais
 
-- `fromCredentials` (POST /token.xml): adiado — schema não documentado e sem credenciais para validar (spec §7 R8).
-- `teams.addMember`: schema do corpo não é 100% documentado pela uMov.me; validado apenas com id interno.
+```ts
+const umov = await UmovClient.fromCredentials({ login, password, domain: 'laivon' })
+// ou só o token: const token = await getToken({ login, password, domain })
+```
+
+Validado contra a API real: POST /token.xml com `<apiToken><login/><password/><domain/></apiToken>` (form-encoded `data=`); o token retorna em `<result><message>`. Atenção: regenerar o token no Center invalida integrações existentes.
+
+## Comportamentos validados contra a API real (equipes)
+
+- `teams.addMember`: corpo `<agentTeam><agent><id/></agent><responsible/></agentTeam>` (variantes com `<agent>` cru ou `agentRelationship` retornam 400).
+- `teams.getMember`: a API responde com raiz `<team>` (o time com o bloco `agentRelationship` do membro).
+- `TeamCreate.teamType`: a relação só resolve por **id interno** — altId retorna `nonExistingId`.
+- Sub-paths de membro (`team/{id}/agent...`) só aceitam **id interno do time** — a forma `alternativeIdentifier/` retorna 404; por isso a assinatura exige id numérico.

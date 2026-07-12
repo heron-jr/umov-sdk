@@ -135,4 +135,28 @@ describe.skipIf(!apiKey)('integração uMov.me (ambiente laivon)', () => {
     const page = await umov.auditing.list()
     expect(page.size).toBeGreaterThanOrEqual(0)
   })
+
+  it('fromCredentials autentica via /token.xml e o cliente funciona', { timeout: TIMEOUT }, async () => {
+    const envFile = join(__dirname, '..', '..', '.env')
+    const env = readFileSync(envFile, 'utf8')
+    const login = /UMOV_LOGIN=(\S+)/.exec(env)?.[1]
+    const password = /UMOV_PASSWORD=(\S+)/.exec(env)?.[1]
+    const domain = /UMOV_DOMAIN=(\S+)/.exec(env)?.[1]
+    if (!login || !password || !domain) return // credenciais não configuradas neste ambiente
+    const client = await UmovClient.fromCredentials({ login, password, domain })
+    const page = await client.agents.list()
+    expect(page.size).toBeGreaterThan(0)
+  })
+
+  it('ciclo de membro na equipe de teste sdk-teste-team', { timeout: TIMEOUT * 2 }, async () => {
+    const agents = await umov.agents.list({ active: true })
+    const agentId = agents.entries[0]!.id
+    // sub-paths de membro só aceitam id interno do time — resolve o altId antes
+    const team = await umov.teams.get({ altId: 'sdk-teste-team' })
+    await umov.teams.addMember(team.id, agentId, { responsible: true })
+    const member = await umov.teams.getMember(team.id, agentId)
+    expect(member.alternativeIdentifier).toBe('sdk-teste-team')
+    await umov.teams.removeMember(team.id, agentId)
+    await expect(umov.teams.getMember(team.id, agentId)).rejects.toBeInstanceOf(UmovNotFoundError)
+  })
 })
