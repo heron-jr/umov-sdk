@@ -5,8 +5,12 @@ SDK TypeScript para a API CenterWeb da [uMov.me](https://www.umov.me). Node ≥ 
 ## Instalação
 
 ```bash
-npm install git+ssh://git@<host-privado>/laivon/umov-sdk.git
+npm install git+https://github.com/heron-jr/umov-sdk.git
+# ou via SSH:
+npm install git+ssh://git@github.com/heron-jr/umov-sdk.git
 ```
+
+O `prepare` script compila o `dist/` na instalação via git.
 
 ## Uso
 
