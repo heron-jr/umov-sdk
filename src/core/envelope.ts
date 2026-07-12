@@ -17,15 +17,28 @@ export function parseListResponse(xml: string): ListPage {
   return { size: Number(doc.result.size ?? entries.length), entries }
 }
 
-export function parseWriteResponse(xml: string): { resourceName: string; id: number; link?: string } {
+export interface WriteResult {
+  resourceName: string
+  /** Presente em create e update por id. */
+  id?: number
+  /** Presente em update por alternativeIdentifier (comportamento observado na API real). */
+  alternativeIdentifier?: string
+  link?: string
+}
+
+export function parseWriteResponse(xml: string): WriteResult {
   const doc = parseXml(xml) as {
-    result?: { resourceName?: string; resourceId?: string; link?: string }
+    result?: { resourceName?: string; resourceId?: string; resourceAlternativeId?: string; link?: string }
   }
-  if (!doc.result?.resourceId) throw new Error('Resposta de escrita sem <resourceId>')
+  const r = doc.result
+  if (!r?.resourceId && !r?.resourceAlternativeId) {
+    throw new Error('Resposta de escrita sem <resourceId>/<resourceAlternativeId>')
+  }
   return {
-    resourceName: doc.result.resourceName ?? '',
-    id: Number(doc.result.resourceId),
-    link: doc.result.link,
+    resourceName: r.resourceName ?? '',
+    id: r.resourceId !== undefined ? Number(r.resourceId) : undefined,
+    alternativeIdentifier: r.resourceAlternativeId,
+    link: r.link,
   }
 }
 

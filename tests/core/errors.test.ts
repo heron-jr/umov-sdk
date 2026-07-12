@@ -36,4 +36,11 @@ describe('errorFromStatus', () => {
     expect(err.url).toContain('***')
     expect(err.url).not.toMatch(/[0-9a-f]{16,}/)
   })
+
+  it('extrai <errors> do envelope de erro real da API para a mensagem', () => {
+    const body = `<result><statusCode>400</statusCode><errors>alternativeIdentifier: error.form.alternativeIdentifierAlreadyInUse;</errors><resourceName>agentType</resourceName></result>`
+    const err = errorFromStatus(400, { ...ctx, responseBody: body })
+    expect(err.apiErrors).toBe('alternativeIdentifier: error.form.alternativeIdentifierAlreadyInUse;')
+    expect(err.message).toContain('alternativeIdentifierAlreadyInUse')
+  })
 })

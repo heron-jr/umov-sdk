@@ -39,15 +39,35 @@ await umov.schedules.cancel({ altId: 'OS-123' })
 await umov.customFields.of('agent', { altId: 'TEC-042' }).setValues({ regioes: ['0', '1'] })
 ```
 
-## Recursos da Fase 1
+## Recursos
 
-| Recurso | Operações |
-|---|---|
-| `agents`, `serviceLocals` | `list`, `iterate`, `get`, `create`, `update` |
-| `schedules` | CRUD + `cancel()` (situation 70) |
-| `activityHistories` | `list`, `iterate`, `get`, `hierarchical()`, `createForSchedule()`, `setApproval()`, `setExportStatus()` |
-| `activities`, `sections`, `sectionFields`, `geoCoordinates` | somente leitura (limitação da API) |
-| `customFields.of(entity, ref)` | `list()`, `setValues()` |
+Cobertura completa da API (Fases 1–3): pessoas, formulários, itens, locais, tarefas, rotas, vínculos com batch atômico, custom entities/fields, mix, mensageria, import/export de arquivos, roteirizador e parsers de webhook. Referência completa por recurso: [docs/entities.md](docs/entities.md).
+
+```ts
+// Batch atômico (upsert por alternativeIdentifier) — máx 50 p/ schedules, 100 demais
+await umov.schedules.upsertBatch(schedules)          // lança RangeError acima do limite
+await umov.items.upsertBatch(items, { chunked: true }) // divide em lotes (cada um atômico à parte)
+
+// Mensageria
+await umov.messages.send({ recipients: ['TEC-042'], description: 'Nova OS', sendNotification: true })
+
+// Custom entities / Mix
+const entries = umov.customEntities.entries({ altId: 'CADASTRO-X' })
+await entries.create({ description: 'Reg 1', customFields: { campo: 'valor' } })
+
+// Webhook (route handler Next/Express)
+import { parseCallbackXml } from '@laivon/umov-sdk/webhook'
+const { activityHistoryIds } = parseCallbackXml(body)
+const laudo = await umov.activityHistories.hierarchical(activityHistoryIds[0])
+```
+
+## Testes de integração
+
+Bateria real contra o ambiente configurado em `.env` (`UMOV_API_KEY`), validada contra o ambiente laivon:
+
+```bash
+npm run test:integration
+```
 
 ## Comportamentos embutidos
 

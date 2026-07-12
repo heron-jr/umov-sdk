@@ -5,19 +5,31 @@ export interface UmovErrorContext {
   responseBody: string
 }
 
+/** Extrai a mensagem do envelope de erro real da API: <result><statusCode/><errors>msg;</errors></result>. */
+function extractApiErrors(body: string): string | undefined {
+  const match = /<errors>([^<]*)<\/errors>/.exec(body)
+  return match?.[1]?.trim() || undefined
+}
+
 export class UmovApiError extends Error {
   readonly status: number
   readonly method: string
   readonly url: string
   readonly responseBody: string
+  /** Mensagem de erro reportada pela própria API (elemento <errors>), quando presente. */
+  readonly apiErrors?: string
 
   constructor(status: number, ctx: UmovErrorContext, detail?: string) {
-    super(`uMov.me API ${status}${detail ? ` (${detail})` : ''}: ${ctx.method} ${ctx.url}`)
+    const apiErrors = extractApiErrors(ctx.responseBody)
+    super(
+      `uMov.me API ${status}${detail ? ` (${detail})` : ''}: ${ctx.method} ${ctx.url}${apiErrors ? ` — ${apiErrors}` : ''}`,
+    )
     this.name = new.target.name
     this.status = status
     this.method = ctx.method
     this.url = ctx.url
     this.responseBody = ctx.responseBody
+    this.apiErrors = apiErrors
   }
 }
 

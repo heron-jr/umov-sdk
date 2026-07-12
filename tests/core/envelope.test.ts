@@ -31,6 +31,15 @@ describe('parseWriteResponse', () => {
     const xml = `<result><resourceName>schedule</resourceName><resourceId>555</resourceId><link>/schedule/555.xml</link></result>`
     expect(parseWriteResponse(xml)).toEqual({ resourceName: 'schedule', id: 555, link: '/schedule/555.xml' })
   })
+
+  it('aceita resourceAlternativeId (update por altId, comportamento da API real)', () => {
+    const xml = `<result><resourceName>agentType</resourceName><resourceAlternativeId>sdk-teste-r2</resourceAlternativeId><link>/agentType/alternativeIdentifier/sdk-teste-r2.xml</link></result>`
+    expect(parseWriteResponse(xml)).toEqual({
+      resourceName: 'agentType',
+      alternativeIdentifier: 'sdk-teste-r2',
+      link: '/agentType/alternativeIdentifier/sdk-teste-r2.xml',
+    })
+  })
 })
 
 describe('parseDetailResponse', () => {

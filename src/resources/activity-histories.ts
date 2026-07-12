@@ -46,6 +46,7 @@ export function createActivityHistoriesResource(transport: Transport): ActivityH
       const res = parseWriteResponse(
         await transport.post(`schedule/${refToPath(scheduleRef)}/activityHistory.xml`, xml),
       )
+      if (res.id === undefined) throw new Error('Create de activityHistory respondeu sem <resourceId>')
       return { id: res.id }
     },
     setApproval: (id, status) => base.update(id, { statusApproval: status }),

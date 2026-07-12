@@ -231,3 +231,205 @@ export interface CustomFieldEntry {
   active?: boolean
   value?: string
 }
+
+// ---------- Cadastros simples (agentType, teamType, group, itemCategory, serviceLocalType, ...) ----------
+export interface SimpleEntity {
+  id: number
+  description?: string
+  alternativeIdentifier?: string
+  active?: boolean
+  [key: string]: unknown
+}
+export interface SimpleEntityCreate {
+  description: string
+  alternativeIdentifier?: string
+  active?: boolean
+}
+export type SimpleEntityUpdate = Partial<SimpleEntityCreate>
+export interface SimpleEntityFilters {
+  description?: string
+  active?: boolean
+  raw?: Record<string, string>
+  [key: string]: unknown
+}
+
+// ---------- SubGroup ----------
+export interface SubGroupCreate extends SimpleEntityCreate {
+  group?: RelationRef
+}
+export type SubGroupUpdate = Partial<SubGroupCreate>
+
+// ---------- Item ----------
+export interface ItemCreate {
+  description: string
+  subGroup: RelationRef
+  alternativeIdentifier?: string
+  active?: boolean
+  itemCategory?: RelationRef
+  customFields?: CustomFieldValues
+  image?: { imageUrlImport: string }
+}
+export type ItemUpdate = Partial<ItemCreate>
+export interface ItemFilters {
+  description?: string
+  active?: boolean
+  subGroup?: number
+  initialInsertDateTime?: Date | string
+  finalInsertDateTime?: Date | string
+  raw?: Record<string, string>
+  [key: string]: unknown
+}
+
+// ---------- AditionalInfoItem (grafia da própria API) ----------
+export interface AdditionalInfoItemCreate {
+  featuredInfo: string
+  active?: boolean
+  item?: RelationRef
+  section?: RelationRef
+  serviceLocal?: RelationRef
+}
+export type AdditionalInfoItemUpdate = Partial<AdditionalInfoItemCreate>
+
+// ---------- SectionItem ----------
+export interface SectionItemCreate {
+  section: RelationRef
+  item: RelationRef
+  active?: boolean
+  order?: number
+  mandatory?: boolean
+}
+export type SectionItemUpdate = Partial<SectionItemCreate>
+export interface SectionItemFilters {
+  active?: boolean
+  section?: number
+  item?: number
+  raw?: Record<string, string>
+  [key: string]: unknown
+}
+
+// ---------- Team ----------
+export interface Team {
+  id: number
+  description?: string
+  alternativeIdentifier?: string
+  active?: boolean
+  teamType?: { id?: number; description?: string }
+  agentRelationship?: unknown
+  [key: string]: unknown
+}
+export interface TeamCreate {
+  description: string
+  teamType: RelationRef
+  alternativeIdentifier?: string
+  active?: boolean
+  /** ATENÇÃO: em update, este bloco SUBSTITUI todos os membros existentes. */
+  agentRelationship?: { agent: Array<{ id: number; responsible?: boolean }> }
+}
+export type TeamUpdate = Partial<TeamCreate>
+
+// ---------- Itinerary ----------
+export interface Itinerary {
+  id: number
+  description?: string
+  alternativeIdentifier?: string
+  active?: boolean
+  origin?: number
+  agentRelation?: number
+  displayOrder?: number
+  exclusive?: boolean
+  itineraryDefault?: boolean
+  [key: string]: unknown
+}
+export interface ItineraryCreate {
+  description: string
+  alternativeIdentifier?: string
+  active?: boolean
+  origin?: number
+  agentRelation?: number
+  displayOrder?: number
+  exclusive?: boolean
+  itineraryDefault?: boolean
+}
+export type ItineraryUpdate = Partial<ItineraryCreate>
+
+// ---------- Vínculos ----------
+export interface AgentActivityCreate {
+  agent: { alternativeIdentifier: string }
+  activity: { alternativeIdentifier: string }
+}
+export interface ScheduleItemCreate {
+  schedule: RelationRef
+  item: RelationRef
+  customFields?: CustomFieldValues
+}
+export interface SectionSubGroupCreate {
+  subGroup: RelationRef
+  section: RelationRef
+}
+export interface Weekdays {
+  monday?: boolean
+  tuesday?: boolean
+  wednesday?: boolean
+  thursday?: boolean
+  friday?: boolean
+  saturday?: boolean
+  sunday?: boolean
+}
+export interface ServiceLocalActivityCreate {
+  serviceLocal: RelationRef
+  activity: RelationRef
+  weekdays?: Weekdays
+  customFields?: CustomFieldValues
+}
+export interface ItineraryActivityCreate {
+  itinerary: RelationRef
+  activity: RelationRef
+  /** Grafia com um 'm' só é da própria API. */
+  comunicationType?: number
+}
+export interface ItineraryAgentCreate {
+  itinerary: RelationRef
+  agent: RelationRef
+}
+export interface ItineraryServiceLocalCreate {
+  itinerary: RelationRef
+  serviceLocal: RelationRef
+  /** Ordem no roteiro e na exibição do mobile — obrigatório na API. */
+  treatmentOrder: number
+}
+
+// ---------- CustomEntity ----------
+export interface CustomEntity {
+  id: number
+  description?: string
+  alternativeIdentifier?: string
+  active?: boolean
+  structuralFunction?: string
+  [key: string]: unknown
+}
+export interface CustomEntityFilters {
+  description?: string
+  structuralFunction?: string
+  raw?: Record<string, string>
+  [key: string]: unknown
+}
+export interface CustomEntityEntryCreate {
+  description: string
+  customFields: CustomFieldValues
+  alternativeIdentifier?: string
+  active?: boolean
+}
+export type CustomEntityEntryUpdate = Partial<CustomEntityEntryCreate>
+
+// ---------- ScheduleRouting ----------
+export interface ScheduleRoutingRequest {
+  origin: { agent: RelationRef; transportMode?: 0 | 1 | 2 } | { geoCoordinate: string; transportMode?: 0 | 1 | 2 }
+  schedules: Array<{ schedule: RelationRef; dependencies?: RelationRef[] }>
+  /** default true — se o roteirizador deve ordenar as tarefas. */
+  route?: boolean
+  /** default true — atualiza prioridade/status ('Em Preparação' → 'Pendente de Envio'). */
+  updateSchedules?: boolean
+  startTime?: Date | string
+  /** default false — usa Google Maps para estimar tempo/distância. */
+  estimate?: boolean
+}

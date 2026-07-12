@@ -36,6 +36,60 @@ export function filtersToQuery(filters: Record<string, unknown>): Record<string,
   return query
 }
 
+export interface BatchConfig {
+  /** Segmento plural do path: POST /batch/{path}.xml */
+  path: string
+  /** Elemento raiz do lote (ex.: 'schedules'). */
+  wrapper: string
+  /** Elemento de cada item (ex.: 'schedule'). */
+  itemRoot: string
+  /** Máximo de itens por lote (100; schedules 50). */
+  max: number
+}
+
+export interface BatchOptions {
+  /** Divide em lotes de `max` POSTados em sequência — CADA LOTE é atômico separadamente. */
+  chunked?: boolean
+}
+
+/**
+ * Batch da uMov.me: upsert por alternativeIdentifier, ATÔMICO — qualquer erro aborta o lote inteiro.
+ * Retorna os stubs (id + link) dos registros criados/atualizados.
+ */
+export function defineBatch<TItem>(
+  transport: Transport,
+  cfg: BatchConfig,
+): (items: TItem[], opts?: BatchOptions) => Promise<ListStub[]> {
+  return async (items, opts) => {
+    if (items.length === 0) return []
+    if (items.length > cfg.max && !opts?.chunked) {
+      throw new RangeError(
+        `Batch de ${cfg.path} aceita no máximo ${cfg.max} itens por chamada (recebeu ${items.length}). ` +
+          `Use { chunked: true } para dividir — mas cada lote passa a ser atômico separadamente.`,
+      )
+    }
+    const stubs: ListStub[] = []
+    for (let i = 0; i < items.length; i += cfg.max) {
+      const chunk = items.slice(i, i + cfg.max)
+      const xml = serializeEntity(cfg.wrapper, { [cfg.itemRoot]: chunk } as Record<string, unknown>)
+      const res = parseListResponse(await transport.post(`batch/${cfg.path}.xml`, xml))
+      stubs.push(...res.entries)
+    }
+    return stubs
+  }
+}
+
+/**
+ * DELETE por id interno — só existe para entidades de vínculo (master data se desativa com active=false).
+ * A API não documenta DELETE por altId avulso em nenhum vínculo; para altIds use deleteByPair.
+ */
+export function defineDelete(transport: Transport, path: string): (ref: number | { id: number }) => Promise<void> {
+  return async (ref) => {
+    const id = typeof ref === 'number' ? ref : ref.id
+    await transport.delete(`${path}/${id}.xml`)
+  }
+}
+
 export interface Resource<TDetail, TCreate, TUpdate, TFilters> {
   list(filters?: TFilters, opts?: ListOptions): Promise<ListPage>
   iterate(filters: TFilters | undefined, opts: IterateOptions & { hydrate: true }): AsyncGenerator<TDetail>
@@ -79,6 +133,7 @@ export function defineResource<TDetail, TCreate, TUpdate, TFilters extends Recor
     async create(payload: TCreate): Promise<{ id: number }> {
       const xml = serializeEntity(rootName, payload as Record<string, unknown>)
       const res = parseWriteResponse(await transport.post(`${path}.xml`, xml))
+      if (res.id === undefined) throw new Error(`Create de ${path} respondeu sem <resourceId>`)
       return { id: res.id }
     },
     async update(ref: EntityRef, payload: TUpdate): Promise<void> {
