@@ -25,7 +25,8 @@ export interface LinkResource<TCreate> {
 }
 
 export interface DeletableLinkResource<TCreate> extends LinkResource<TCreate> {
-  delete(ref: EntityRef): Promise<void>
+  /** DELETE por id interno (a API não documenta DELETE por altId avulso — use deleteByPair). */
+  delete(ref: number | { id: number }): Promise<void>
 }
 
 interface LinkConfig {
@@ -37,7 +38,7 @@ interface LinkConfig {
 
 function defineLink<TCreate>(transport: Transport, cfg: LinkConfig) {
   const base = defineResource<Record<string, unknown>, never, never, LinkFilters>(transport, { path: cfg.path })
-  const resource: LinkResource<TCreate> & { delete?: (ref: EntityRef) => Promise<void> } = {
+  const resource: LinkResource<TCreate> & { delete?: (ref: number | { id: number }) => Promise<void> } = {
     list: base.list,
     get: base.get,
     upsertBatch: defineBatch<TCreate>(transport, {
@@ -56,7 +57,8 @@ export interface ScheduleItemsResource extends DeletableLinkResource<ScheduleIte
   deleteByPair(pair: { scheduleAltId: string; itemAltId: string }): Promise<void>
 }
 
-export interface SectionSubGroupsResource extends DeletableLinkResource<SectionSubGroupCreate> {
+/** sectionSubGroup só documenta DELETE em forma de PAR — não há rota de delete por id avulso. */
+export interface SectionSubGroupsResource extends LinkResource<SectionSubGroupCreate> {
   /** DELETE por par (ids internos ou altIds, intercambiáveis nas mesmas posições). */
   deleteByPair(pair: { subGroup: EntityRef; section: EntityRef }): Promise<void>
 }
@@ -92,8 +94,7 @@ export function createLinkResources(transport: Transport) {
     ...(defineLink<SectionSubGroupCreate>(transport, {
       path: 'sectionSubGroup',
       batchPath: 'sectionSubGroups',
-      deletable: true,
-    }) as DeletableLinkResource<SectionSubGroupCreate>),
+    }) as LinkResource<SectionSubGroupCreate>),
     async deleteByPair({ subGroup, section }) {
       await transport.delete(`sectionSubGroup/${pairSegment(subGroup)}/${pairSegment(section)}.xml`)
     },

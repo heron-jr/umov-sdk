@@ -46,6 +46,39 @@ describe('client — wiring dos recursos das Fases 2+3', () => {
     await client.additionalInfoItems.list()
     expect(String(fetchMock.mock.calls[0]![0])).toContain('/aditionalInfoItem.xml')
   })
+
+  it('batches do client usam os paths e wrappers corretos', async () => {
+    const batchXml = `<result><size>1</size><entries><entry id="1" link="/x/1.xml"/></entries></result>`
+    const fetchMock = vi.fn(async (_url: string | URL) => new Response(batchXml, { status: 200 }))
+    const client = new UmovClient({ apiKey: 'k', requestsPerSecond: 1000, fetch: fetchMock as unknown as typeof fetch })
+
+    await client.items.upsertBatch([{ description: 'I', subGroup: { id: 1 } }])
+    await client.serviceLocals.upsertBatch([{ description: 'L' }])
+    await client.schedules.upsertBatch([
+      { agent: { id: 1 }, serviceLocal: { id: 2 }, date: '2026-07-15', hour: '09:00' },
+    ])
+    const urls = fetchMock.mock.calls.map((c) => String(c[0]))
+    expect(urls[0]).toContain('/batch/items.xml')
+    expect(urls[1]).toContain('/batch/serviceLocals.xml')
+    expect(urls[2]).toContain('/batch/schedules.xml')
+    const [, init0] = fetchMock.mock.calls[0]! as unknown as [string, RequestInit]
+    const body0 = decodeURIComponent(String(init0.body)).replace(/^data=/, '')
+    expect(body0.startsWith('<items><item>')).toBe(true)
+  })
+
+  it('schedules.upsertBatch impõe o máximo de 50', async () => {
+    const fetchMock = vi.fn(async (_url: string | URL) => new Response(listXml, { status: 200 }))
+    const client = new UmovClient({ apiKey: 'k', requestsPerSecond: 1000, fetch: fetchMock as unknown as typeof fetch })
+    const many = Array.from({ length: 51 }, (_, i) => ({
+      agent: { id: 1 },
+      serviceLocal: { id: 2 },
+      date: '2026-07-15',
+      hour: '09:00',
+      alternativeIdentifier: `OS-${i}`,
+    }))
+    await expect(client.schedules.upsertBatch(many)).rejects.toBeInstanceOf(RangeError)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
 })
 
 describe('teams — membros', () => {
@@ -81,6 +114,13 @@ describe('mensageria', () => {
     await expect(
       messages.send({ recipients: ['a1'], description: 'x'.repeat(501) }),
     ).rejects.toBeInstanceOf(RangeError)
+    await expect(messages.send({ recipients: [], description: 'oi' })).rejects.toBeInstanceOf(RangeError)
+  })
+
+  it('pushNotifications.send rejeita lista vazia de agentes', async () => {
+    const { transport } = makeTransport()
+    const { pushNotifications } = createMessagingResources(transport)
+    await expect(pushNotifications.send({ message: 'x', agents: [] })).rejects.toBeInstanceOf(RangeError)
   })
 
   it('pushNotifications.send monta agents repetidos', async () => {

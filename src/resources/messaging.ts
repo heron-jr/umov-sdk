@@ -53,6 +53,7 @@ export function createMessagingResources(transport: Transport): {
   return {
     messages: {
       async send(msg) {
+        if (msg.recipients.length === 0) throw new RangeError('Informe ao menos um destinatário')
         if (msg.description.length > 500) {
           throw new RangeError(`Mensagem excede 500 caracteres (${msg.description.length}) — limite da uMov.me`)
         }
@@ -68,6 +69,7 @@ export function createMessagingResources(transport: Transport): {
     },
     pushNotifications: {
       async send(notification) {
+        if (notification.agents.length === 0) throw new RangeError('Informe ao menos um agente destinatário')
         const xml = serializeEntity('scheduleNotification', {
           message: notification.message,
           agents: { agent: notification.agents.map((a) => ({ alternativeIdentifier: a })) },

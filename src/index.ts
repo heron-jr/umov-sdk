@@ -29,6 +29,7 @@ export type {
   SmsSend,
   SmsTarget,
 } from './resources/messaging'
+export type { AuditingFilters, AuditingResource, AuditingValueFilters } from './resources/auditing'
 export type { CustomEntitiesResource, CustomEntityEntriesResource } from './resources/custom-entities'
 export type { MixResource } from './resources/mix'
 export type { ExportLayoutsResource, ImportFilesResource, ImportLayoutsResource } from './resources/files'

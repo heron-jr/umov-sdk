@@ -10,9 +10,14 @@ export interface CallbackXmlPayload {
 /**
  * Parseia o payload XML do callback de tarefas da uMov.me
  * (variante configurada via custom field 'callback' no Schedule).
+ * Aceita tanto XML cru quanto o corpo form-encoded `data=...` que a uMov.me envia.
  */
 export function parseCallbackXml(body: string): CallbackXmlPayload {
-  const doc = parseXml(body) as {
+  let xml = body
+  if (/^\s*data=/.test(body)) {
+    xml = new URLSearchParams(body).get('data') ?? ''
+  }
+  const doc = parseXml(xml) as {
     Schedule?: {
       alternativeIdentifier?: string
       activityHistories?: { activityHistory?: { $id?: string } | Array<{ $id?: string }> }

@@ -58,13 +58,13 @@ describe('defineBatch', () => {
 })
 
 describe('defineDelete', () => {
-  it('DELETE no path do ref (id e altId)', async () => {
+  it('DELETE por id interno apenas (API não documenta delete por altId avulso em vínculos)', async () => {
     const { transport, fetchMock } = makeTransport('<result/>')
     const del = defineDelete(transport, 'scheduleItem')
     await del(9)
-    await del({ altId: 'SI-1' })
+    await del({ id: 12 })
     expect(String(fetchMock.mock.calls[0]![0])).toContain('/scheduleItem/9.xml')
-    expect(String(fetchMock.mock.calls[1]![0])).toContain('/scheduleItem/alternativeIdentifier/SI-1.xml')
+    expect(String(fetchMock.mock.calls[1]![0])).toContain('/scheduleItem/12.xml')
     const [, init] = fetchMock.mock.calls[0]! as unknown as [string, RequestInit]
     expect(init.method).toBe('DELETE')
   })

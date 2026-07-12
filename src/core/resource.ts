@@ -79,10 +79,14 @@ export function defineBatch<TItem>(
   }
 }
 
-/** DELETE por ref — só existe para entidades de vínculo (master data se desativa com active=false). */
-export function defineDelete(transport: Transport, path: string): (ref: EntityRef) => Promise<void> {
+/**
+ * DELETE por id interno — só existe para entidades de vínculo (master data se desativa com active=false).
+ * A API não documenta DELETE por altId avulso em nenhum vínculo; para altIds use deleteByPair.
+ */
+export function defineDelete(transport: Transport, path: string): (ref: number | { id: number }) => Promise<void> {
   return async (ref) => {
-    await transport.delete(`${path}/${refToPath(ref)}.xml`)
+    const id = typeof ref === 'number' ? ref : ref.id
+    await transport.delete(`${path}/${id}.xml`)
   }
 }
 

@@ -107,4 +107,32 @@ describe.skipIf(!apiKey)('integração uMov.me (ambiente laivon)', () => {
     const page = await umov.teams.list()
     expect(page.size).toBeGreaterThanOrEqual(0)
   })
+
+  it('batch real: upsert de 2 serviceLocals de teste (envelope de lista) + desativação', { timeout: TIMEOUT * 2 }, async () => {
+    const stubs = await umov.serviceLocals.upsertBatch([
+      { description: 'SDK TESTE batch 1 (pode excluir)', alternativeIdentifier: 'sdk-teste-batch-1', active: false },
+      { description: 'SDK TESTE batch 2 (pode excluir)', alternativeIdentifier: 'sdk-teste-batch-2', active: false },
+    ])
+    expect(stubs).toHaveLength(2)
+    for (const s of stubs) expect(typeof s.id).toBe('number')
+    // upsert de novo (mesmos altIds) prova a semântica de update do batch
+    const again = await umov.serviceLocals.upsertBatch([
+      { description: 'SDK TESTE batch 1 atualizado (pode excluir)', alternativeIdentifier: 'sdk-teste-batch-1', active: false },
+    ])
+    expect(again).toHaveLength(1)
+    expect(again[0]!.id).toBe(stubs[0]!.id)
+  })
+
+  it('mix: descoberta funciona ou falha com mensagem clara', { timeout: TIMEOUT * 2 }, async () => {
+    const result = await umov.mix.items().then(
+      () => 'configurado',
+      (e: Error) => e.message,
+    )
+    if (result !== 'configurado') expect(result).toMatch(/Mix não configurado/)
+  })
+
+  it('auditing lista (read-only)', { timeout: TIMEOUT }, async () => {
+    const page = await umov.auditing.list()
+    expect(page.size).toBeGreaterThanOrEqual(0)
+  })
 })

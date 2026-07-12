@@ -42,6 +42,7 @@ Todos os recursos vivem em `new UmovClient({ apiKey })`. Operações padrão (qu
 | `schedules` | L·I·G·C·U·B(**50**) + `cancel(ref)` + `route(request)` | cancel = situation 70; route = roteirizador (máx 50 tarefas, exige GPS) |
 | `activityHistories` | L·I·G + `hierarchical(id)` + `createForSchedule` + `setApproval` + `setExportStatus` | lista default = últimos 7 dias sem filtro de data |
 | `geoCoordinates` | L·I·G | |
+| `auditing` | L·G + `values.list/get` + `hierarchical(historyId, values?)` | auditoria do device (OS, IMEI, bateria...); read-only |
 
 ## Rotas
 

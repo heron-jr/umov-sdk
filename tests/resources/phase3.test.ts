@@ -101,6 +101,76 @@ describe('customEntities.entries', () => {
   })
 })
 
+describe('schedules — normalização de Date', () => {
+  it('upsertBatch e create serializam Date como YYYY-MM-DD; route formata startTime', async () => {
+    const batchXml = `<result><size>1</size><entries><entry id="1" link="/schedule/1.xml"/></entries></result>`
+    const { transport, fetchMock } = makeTransport((u) => (u.includes('scheduleRouting') ? '<scheduleRouting/>' : batchXml))
+    const schedules = createSchedulesResource(transport)
+
+    await schedules.upsertBatch([
+      { agent: { id: 1 }, serviceLocal: { id: 2 }, date: new Date(2026, 6, 15), hour: '09:00' },
+    ])
+    expect(call(fetchMock).body).toContain('<date>2026-07-15</date>')
+
+    await schedules.route({
+      origin: { geoCoordinate: '0,0' },
+      schedules: [{ schedule: { id: 1 } }],
+      startTime: new Date(2026, 6, 15, 8, 30, 0),
+    })
+    expect(call(fetchMock, 1).body).toContain('<startTime>2026-07-15 08:30:00</startTime>')
+  })
+})
+
+describe('mix — falhas e retry', () => {
+  it('ambiente sem mix lança erro claro e permite retry após configuração', async () => {
+    const empty = `<result><size>0</size></result>`
+    const discovery = `<result><size>3</size><entries><entry id="1" link="/customEntity/1.xml"/><entry id="2" link="/customEntity/2.xml"/><entry id="3" link="/customEntity/3.xml"/></entries></result>`
+    const details: Record<string, string> = {
+      '/customEntity/1.xml': `<customEntity><id>1</id><description>Tipo de Mix</description></customEntity>`,
+      '/customEntity/2.xml': `<customEntity><id>2</id><description>Mix</description></customEntity>`,
+      '/customEntity/3.xml': `<customEntity><id>3</id><description>Itens do Mix</description></customEntity>`,
+    }
+    let configured = false
+    const { transport } = makeTransport((u) => {
+      const detail = Object.keys(details).find((k) => u.includes(k))
+      if (detail) return details[detail]!
+      if (u.includes('structuralFunction=mix')) return configured ? discovery : empty
+      return empty
+    })
+    const mix = createMixResource(createCustomEntitiesResource(transport))
+    await expect(mix.items()).rejects.toThrow(/Mix não configurado/)
+    configured = true
+    // cache resetado na falha → retry funciona
+    await expect(mix.items()).resolves.toBeDefined()
+  })
+
+  it('falha transiente de rede na descoberta não fica cacheada', async () => {
+    let calls = 0
+    const fetchMock = vi.fn(async (_url: string | URL) => {
+      calls++
+      if (calls === 1) throw new TypeError('fetch failed')
+      if (String(_url).includes('structuralFunction=mix')) {
+        return new Response(
+          `<result><size>3</size><entries><entry id="1" link="/customEntity/1.xml"/><entry id="2" link="/customEntity/2.xml"/><entry id="3" link="/customEntity/3.xml"/></entries></result>`,
+          { status: 200 },
+        )
+      }
+      const id = /customEntity\/(\d)\.xml/.exec(String(_url))?.[1]
+      const desc = { '1': 'Tipo de Mix', '2': 'Mix', '3': 'Itens do Mix' }[id ?? '1']
+      return new Response(`<customEntity><id>${id}</id><description>${desc}</description></customEntity>`, { status: 200 })
+    })
+    const transport = new Transport({
+      apiKey: 'k',
+      requestsPerSecond: 1000,
+      maxRetries: 0, // sem retry no transporte: força a rejeição chegar ao mix
+      fetch: fetchMock as unknown as typeof fetch,
+    })
+    const mix = createMixResource(createCustomEntitiesResource(transport))
+    await expect(mix.items()).rejects.toThrow()
+    await expect(mix.items()).resolves.toBeDefined()
+  })
+})
+
 describe('mix — descoberta cacheada', () => {
   function mixTransport() {
     const discovery = `<result><size>3</size><entries><entry id="1" link="/customEntity/1.xml"/><entry id="2" link="/customEntity/2.xml"/><entry id="3" link="/customEntity/3.xml"/></entries></result>`
@@ -182,6 +252,23 @@ describe('webhook parsers', () => {
   it('parseCallbackXml com um history só', () => {
     const xml = `<Schedule><alternativeIdentifier>OS-9</alternativeIdentifier><activityHistories><activityHistory id="11"/></activityHistories></Schedule>`
     expect(parseCallbackXml(xml).activityHistoryIds).toEqual([11])
+  })
+
+  it('parseCallbackXml aceita corpo form-encoded data= (formato real do POST da uMov.me)', () => {
+    const xml = `<Schedule><alternativeIdentifier>OS-9</alternativeIdentifier><activityHistories><activityHistory id="11"/></activityHistories></Schedule>`
+    const formBody = `data=${encodeURIComponent(xml)}`
+    expect(parseCallbackXml(formBody)).toEqual({
+      scheduleAlternativeIdentifier: 'OS-9',
+      activityHistoryIds: [11],
+    })
+  })
+
+  it('parseCallbackXml sem bloco activityHistories retorna lista vazia', () => {
+    const xml = `<Schedule><alternativeIdentifier>OS-9</alternativeIdentifier></Schedule>`
+    expect(parseCallbackXml(xml)).toEqual({
+      scheduleAlternativeIdentifier: 'OS-9',
+      activityHistoryIds: [],
+    })
   })
 
   it('parseCallbackJson aceita string e objeto, normalizando números', () => {

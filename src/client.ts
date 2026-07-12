@@ -9,6 +9,7 @@ import { createCustomFieldsAccessor, type CustomFieldsAccessor } from './resourc
 import { createTeamsResource, type TeamsResource } from './resources/teams'
 import { createLinkResources } from './resources/links'
 import { createMessagingResources } from './resources/messaging'
+import { createAuditingResource, type AuditingResource } from './resources/auditing'
 import { createCustomEntitiesResource, type CustomEntitiesResource } from './resources/custom-entities'
 import { createMixResource, type MixResource } from './resources/mix'
 import { createFileResources } from './resources/files'
@@ -85,6 +86,7 @@ export class UmovClient {
   readonly schedules: SchedulesResource
   readonly activityHistories: ActivityHistoriesResource
   readonly geoCoordinates
+  readonly auditing: AuditingResource
   // Rotas
   readonly itineraries
   // Vínculos
@@ -181,6 +183,7 @@ export class UmovClient {
     this.geoCoordinates = readOnly(
       defineResource<GeoCoordinate, never, never, GeoCoordinateFilters>(transport, { path: 'geoCoordinate' }),
     )
+    this.auditing = createAuditingResource(transport)
 
     // Rotas
     this.itineraries = defineResource<Itinerary, ItineraryCreate, ItineraryUpdate, SimpleEntityFilters>(transport, {
