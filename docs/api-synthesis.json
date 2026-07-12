@@ -1,0 +1,342 @@
+{
+ "overview": "The uMov.me API is an XML-over-HTTP REST API (CenterWeb API) for the uMov.me field-service management platform. It exposes the platform's core dimensions — Who (agents, teams), What (items, groups), Where (service locations), and What-to-do (activities, sections, fields) — plus task management (schedules), routes (itineraries), mobile-collected execution data (activity histories, geocoordinates, device audits), customizable registries (custom entities/fields), messaging/push/SMS, file import/export scheduling, task routing, and an outbound callback (webhook) service. Most master-data entities support list/get/create/update (create and update are both POST; there is no PUT); link/association entities additionally support DELETE and atomic batch endpoints; execution-data entities are largely read-only. Records are addressable interchangeably by internal numeric id or a customer-assigned alternativeIdentifier, which is the backbone of external-system integration.",
+ "authentication": "Single scheme: an environment-scoped API token (hex string) embedded as a URL path segment on every request — https://api.umov.me/CenterWeb/api/{apiKey}/{resource}.xml. No headers, no OAuth. The token is obtained either (a) from the Center web UI's API settings, or (b) programmatically via POST /token.xml with login credentials in an XML body (this is the only endpoint that does not itself take a token in the path). Regenerating the token in the UI invalidates all existing integrations. Invalid token returns HTTP 401. Because the token rides in the URL, the SDK should treat it as a constructor-level secret and be careful about logging URLs. The callback/webhook service is separate: uMov.me POSTs to a customer URL; optional auth on that URL is customer-defined and arranged via Help Desk.",
+ "conventions": "BASE URL: https://api.umov.me/CenterWeb/api/{apiKey}/ (docs inconsistently show api.umov.me, center.umov.me, and umovme.octacx.com hosts; api.umov.me is the canonical production host — SDK should make host configurable). DATA FORMAT: XML with .xml suffix on every resource; a few pages (itinerary, itineraryAgent, scheduleItem) mention JSON support via .json extension, but XML is the only fully documented format — SDK should build an XML serializer/parser. POST bodies: several entities (agent, serviceLocal, schedule, activityHistory, customField) document the XML payload wrapped in a form-encoded parameter named \"data\"; other pages show raw XML bodies — SDK should standardize on the data= form-param convention, which appears to be the universally accepted transport. VERBS: GET = read; POST = both create (to collection path, returns 201) and update (to /{id}.xml or /alternativeIdentifier/{altId}.xml, returns 200); DELETE only on link entities (sectionSubGroup, itineraryActivity/Agent/ServiceLocal, scheduleItem, serviceLocalActivity, team-agent). No PUT/PATCH; updates are partial (only sent fields change), except multi-valued custom fields and team agentRelationship blocks, which REPLACE all existing values/members. IDENTIFIERS: every entity has an internal numeric id and an optional customer-managed alternativeIdentifier; both are interchangeable in lookup/update paths via the /alternativeIdentifier/{value}/ path segment. alternativeIdentifier must be unique (duplicates cause errors and break altId lookups); docs repeatedly state \"for updates only the alternativeIdentifier is mandatory\". RESPONSE ENVELOPE: single-resource writes return <result> with <resourceName>, <resourceId>, <link>; list GETs return <result> with <resourceName>, <size>, <entries> of <entry id=\"..\" link=\"/resource/{id}.xml\"/> stubs only — full data requires a follow-up GET per entry. PAGINATION: max 100 records per page on list queries; further pages via ?paging.page={n} (1-based); without the param only the first page is returned. FILTERING: query-string params matching entity fields, including dotted nested-relation syntax (e.g. activity.description, itinerary.alternativeIdentifier, sectionField.type) and custom-field filters by the field's alternativeIdentifier. Datetime format YYYY-MM-DD HH:MM:SS; in query strings encode space as %20 and colon as %3A. CHARACTER ESCAPING: string values with special characters must be wrapped in XML CDATA; % must additionally be encoded as %25 and & as %26 inside CDATA; literal line breaks inside CDATA are preserved. Custom field names encode spaces as double underscores (numero__da__nota__fiscal); multi-select custom field values are pipe-separated (0|1). BATCH: /batch/{pluralResource}.xml POST endpoints exist for items, serviceLocals, schedules (max 50), agentActivities, itineraryActivities, itineraryAgents, itineraryServiceLocals, scheduleItems, serviceLocalActivities, sectionSubGroups, customEntityEntries, customFields (max 100 unless noted); ALL batches are atomic — any error aborts the entire operation and nothing is persisted; batch = upsert (alternativeIdentifier decides insert vs update). ERRORS/LIMITS: 200 OK (GET/update/delete), 201 Created (insert), 400 malformed, 401 bad token, 404 not found, 429 rate-limited, 501 entity not API-enabled, 504 timeout. Rate limit: 4 requests/second per IP/token — SDK should ship a built-in throttle/retry-on-429.",
+ "entityGroups": [
+  {
+   "group": "Platform / Auth",
+   "entities": [
+    {
+     "name": "Token",
+     "description": "Authentication token retrieval using login credentials.",
+     "operations": "POST /token.xml (XML body with credentials)",
+     "keyFields": "token (hex string)"
+    },
+    {
+     "name": "Callback (webhook, outbound)",
+     "description": "uMov.me-to-customer notification when a task execution history arrives; not a callable endpoint. XML flavor configured via a schedule custom field with alternativeIdentifier='callback' holding the destination URL; JSON flavor configured per activity via Help Desk (HTTPS required). Fires exactly once per history; optional wait-for-photos mode; histories marked integrated.",
+     "operations": "POST from uMov.me to customer URL; must respond HTTP 200 or it retries/logs",
+     "keyFields": "XML: schedule.alternativeIdentifier + activityHistory ids; JSON: historyId, taskId, clientId, activityId"
+    }
+   ]
+  },
+  {
+   "group": "People (Quem?)",
+   "entities": [
+    {
+     "name": "Agent",
+     "description": "Field user/person; the Who dimension. Supports custom fields (incl. multi-valued) and image import by URL.",
+     "operations": "GET list /agent.xml (filters: name, active, agentType.description, initialInsertDateTime, finalInsertDateTime); GET /agent/{id}.xml and /agent/alternativeIdentifier/{altId}.xml; POST create /agent.xml; POST update /agent/{id}.xml and /agent/alternativeIdentifier/{altId}.xml",
+     "keyFields": "id, name, login, password, agentType (all four required on create), alternativeIdentifier, active, customFields"
+    },
+    {
+     "name": "AgentType",
+     "description": "Type/category of agent.",
+     "operations": "GET list /agentType.xml (filters: description, active); GET /agentType/{id}.xml, /agentType/alternativeIdentifier/{altId}.xml; POST create /agentType.xml; POST update /agentType/{id}.xml",
+     "keyFields": "id, description, alternativeIdentifier, active"
+    },
+    {
+     "name": "Team",
+     "description": "Team of agents with membership sub-resources. WARNING: updating with an agentRelationship block replaces ALL members; use per-agent sub-endpoints for incremental changes.",
+     "operations": "GET list /team.xml; GET /team/{id}.xml; POST create/update /team.xml, /team/{id}.xml; POST add member /team/{teamId}/agent.xml; GET member /team/{teamId}/agent/{agentId}.xml; DELETE member /team/{teamId}/agent/{agentId}.xml (removes relationship only)",
+     "keyFields": "id, description, alternativeIdentifier, active, teamType, agentRelationship (agent id + responsible flag)"
+    },
+    {
+     "name": "TeamType",
+     "description": "Type of team.",
+     "operations": "GET list /teamType.xml; GET /teamType/{id}.xml; POST create /teamType.xml; POST update /teamType/{id}.xml (partial payloads allowed)",
+     "keyFields": "id, description (required on create), alternativeIdentifier, active"
+    },
+    {
+     "name": "SmsRequest",
+     "description": "Send SMS to an agent or service location. Requires customer Zenvia account (via Help Desk) and valid mobile number; altId targeting sends only if exactly one agent matches.",
+     "operations": "POST /smsRequest.xml",
+     "keyFields": "agent.id | agent.alternativeIdentifier | serviceLocal.alternativeIdentifier, message, sendDownloadLink"
+    }
+   ]
+  },
+  {
+   "group": "Activities & Form Structure (activity definitions)",
+   "entities": [
+    {
+     "name": "Activity",
+     "description": "Activity (form/workflow) definition with GPS/execution config flags and nested sections, mathExpressions, logicalExpressions (returned as id+link references).",
+     "operations": "GET list /activity.xml (filters: description, initialInsertDateTime, finalInsertDateTime); GET /activity/{id}.xml; GET /activity/alternativeIdentifier/{altId}.xml — read-only per docs",
+     "keyFields": "id, description, alternativeIdentifier, GPS/execution flags, sections[], mathExpressions[], logicalExpressions[]"
+    },
+    {
+     "name": "Section",
+     "description": "Grouping of fields within an activity; read-only via API.",
+     "operations": "GET list /section.xml (filter: activity.description dotted syntax); GET /section/{id}.xml; GET /section/alternativeIdentifier/{altId}",
+     "keyFields": "id, description, order, mandatory, active, useItem, itemFillMode, displayItemsInMobile, quiz/lock flags, sectionFields[], mathExpressions[], logicalExpressions[]"
+    },
+    {
+     "name": "SectionField",
+     "description": "Customizable field of a section; read-only via API.",
+     "operations": "GET list /sectionField.xml (filter: description, likely other fields); GET /sectionField/{id}.xml; GET /sectionField/alternativeIdentifier/{altId}",
+     "keyFields": "id, description, type (code letters e.g. I, L — codes undocumented), active, alternativeIdentifier"
+    },
+    {
+     "name": "SectionItem",
+     "description": "Links an Item to a Section.",
+     "operations": "GET list /sectionItem.xml (filters: active, section, item); GET /sectionItem/{id}.xml; POST create /sectionItem.xml; POST update /sectionItem/{id}.xml",
+     "keyFields": "id, active, order, mandatory, section(id|altId), item(id|altId)"
+    },
+    {
+     "name": "SectionSubGroup",
+     "description": "Links an item SubGroup to a Section.",
+     "operations": "POST create /sectionSubGroup.xml; POST update /sectionSubGroup/{subGroupAltId}/{sectionAltId}.xml; POST batch /batch/sectionSubGroups.xml (max 100, atomic); GET list /sectionSubGroup.xml (filter: section={id}); GET /sectionSubGroup/{id}.xml; DELETE /sectionSubGroup/{subGroupId}/{sectionId}.xml (ids or altIds interchangeable)",
+     "keyFields": "id, subGroup(id|altId), section(id|altId)"
+    },
+    {
+     "name": "MathExpression",
+     "description": "Value formulas (Fórmulas de Valor); read-only via API.",
+     "operations": "GET list /mathExpression.xml (filters incl. dotted: sectionField.type, sectionField.active, objectCode); GET /mathExpression/{id}.xml",
+     "keyFields": "id, objectType, objectCode, moment, expressionForPrint, convertEmptyValuesToZero, ordination, documentation, sectionField"
+    },
+    {
+     "name": "LogicalExpression",
+     "description": "Validation formulas (Fórmulas de Validação); read-only via API.",
+     "operations": "GET list /logicalExpression.xml (query-param filters); GET /logicalExpression/{id}.xml",
+     "keyFields": "id, expression fields (summary list returns ids/links only)"
+    },
+    {
+     "name": "AgentActivity",
+     "description": "Links agents to activities (both referenced by alternativeIdentifier).",
+     "operations": "GET list /agentActivity.xml; POST batch /batch/agentActivities.xml (max 100, atomic)",
+     "keyFields": "id, agent.alternativeIdentifier, activity.alternativeIdentifier"
+    }
+   ]
+  },
+  {
+   "group": "Items (O Quê?)",
+   "entities": [
+    {
+     "name": "Item",
+     "description": "The What dimension; belongs to a subGroup, optional itemCategory, custom fields (pipe-separated multivalues), image via URL import.",
+     "operations": "GET list /item.xml (filters: description, active, subGroup, initialInsertDateTime, finalInsertDateTime); GET /item/{id}.xml, /item/alternativeIdentifier/{altId}.xml; POST create /item.xml; POST update /item/{id}.xml, /item/alternativeIdentifier/{altId}.xml; POST batch /batch/items.xml (atomic)",
+     "keyFields": "id, description, alternativeIdentifier, active, subGroup(id|altId), itemCategory, customFields, image.imageUrlImport"
+    },
+    {
+     "name": "ItemCategory",
+     "description": "Item category.",
+     "operations": "GET list /itemCategory.xml (filters: description, active); GET /itemCategory/{id}.xml, /itemCategory/alternativeIdentifier/{altId}.xml (docs show path typo 'alternativedentifier'); POST create /itemCategory.xml; POST update /itemCategory/{id}.xml",
+     "keyFields": "id, description (required on create), alternativeIdentifier, active"
+    },
+    {
+     "name": "Group",
+     "description": "Top-level item grouping.",
+     "operations": "GET list /group.xml (filters: description, active); GET /group/{id}.xml; GET by altId (docs show malformed path /group/alternativeIdentifier{altId}.xml — likely missing slash); POST create /group.xml; POST update /group/{id}.xml",
+     "keyFields": "id, description, alternativeIdentifier, active"
+    },
+    {
+     "name": "SubGroup",
+     "description": "Second-level item grouping under a Group; items belong to subgroups.",
+     "operations": "GET list /subGroup.xml (filters: description, active, alternativeIdentifier); GET /subGroup/{id}.xml, /subGroup/alternativeIdentifier/{altId}.xml; POST create /subGroup.xml; POST update /subGroup/{id}.xml; items of subgroup via GET /item.xml?subGroup={id}",
+     "keyFields": "id, description, alternativeIdentifier, active, group(id|altId)"
+    },
+    {
+     "name": "AditionalInfoItem",
+     "description": "Featured items (Itens em Destaque) linking item + section + serviceLocal with a highlight text. NOTE: API's own misspelling 'aditional' must be preserved.",
+     "operations": "POST create /aditionalInfoItem.xml; GET list /aditionalInfoItem.xml; GET /aditionalInfoItem/{id}.xml; POST update /aditionalInfoItem/{id}.xml",
+     "keyFields": "id, featuredInfo, active, item, section, serviceLocal"
+    }
+   ]
+  },
+  {
+   "group": "Locations (Onde?)",
+   "entities": [
+    {
+     "name": "ServiceLocal",
+     "description": "Service location; the Where dimension. Geocoordinates auto-derived from address when not supplied (left empty if address invalid).",
+     "operations": "GET list /serviceLocal.xml (filters: country, active, initialInsertDateTime, finalInsertDateTime); GET /serviceLocal/{id}.xml, /serviceLocal/alternativeIdentifier/{altId}.xml; POST create /serviceLocal.xml; POST update /serviceLocal/{id}.xml, by altId; POST batch /batch/serviceLocals.xml (<serviceLocals> wrapper)",
+     "keyFields": "id, description/corporateName, alternativeIdentifier, active, address block, contact, geoCoordinate, accountable agent, serviceLocalType, itemsRelationship, customFields"
+    },
+    {
+     "name": "ServiceLocalType",
+     "description": "Type of service location.",
+     "operations": "GET list /serviceLocalType.xml (filters: description, active); GET /serviceLocalType/{id}.xml, /serviceLocalType/alternativeIdentifier/{altId}.xml; POST create /serviceLocalType.xml; POST update by id or altId",
+     "keyFields": "id (read-only), description (required), alternativeIdentifier, active"
+    },
+    {
+     "name": "ServiceLocalClassification",
+     "description": "Classification of service location.",
+     "operations": "GET list /serviceLocalClassification.xml (filters: description, active); GET /{id}.xml, /alternativeIdentifier/{altId}.xml; POST create; POST update by id or altId",
+     "keyFields": "id, description (required on create), alternativeIdentifier, active"
+    },
+    {
+     "name": "Local3Dimension",
+     "description": "Third grouping dimension for service locations (grupo de local de atendimento).",
+     "operations": "GET list /local3Dimension.xml (filters: description, active); GET /{id}.xml, /alternativeIdentifier/{altId}.xml; POST create; POST update by id or altId",
+     "keyFields": "id, description (required on create), alternativeIdentifier, active"
+    },
+    {
+     "name": "ServiceLocalActivity",
+     "description": "Links activities to service locations, including weekday scheduling and custom fields (e.g. execution frequency).",
+     "operations": "GET list /serviceLocalActivity.xml (filters: serviceLocal.alternativeIdentifier, activity.alternativeIdentifier); POST batch /batch/serviceLocalActivities.xml (max 100, atomic); DELETE /serviceLocalActivity/{id}.xml",
+     "keyFields": "id, serviceLocal(altId), activity(altId), weekday flags, customFields"
+    }
+   ]
+  },
+  {
+   "group": "Tasks / Schedules",
+   "entities": [
+    {
+     "name": "Schedule",
+     "description": "Task assigned to an agent at a location. Situations: 30=pending, 40=in field, 50=returned/executed, 70=cancelled. Cancel by POSTing situation.id=70 (rejected if already 50 or 70). Linked activities only in detail responses.",
+     "operations": "GET list /schedule.xml (filters: serviceLocal, serviceLocal.alternativeIdentifier, agent, agent.active, situation, situation.description, serviceLocal.country, initialInsertDateTime, finalInsertDateTime, custom-field altId=value; paging.page); GET /schedule/{id}.xml, /schedule/alternativeIdentifier/{altId}.xml; POST create /schedule.xml; POST update (partial) by id or altId; POST batch /batch/schedules.xml (max 50, atomic, <schedules> wrapper)",
+     "keyFields": "id, agent(id|altId) req, serviceLocal(id|altId) req, date req, hour req, observation, alternativeIdentifier, scheduleType, situation, activitiesOrigin, activityRelationship, customFields, image.imageUrlImport"
+    },
+    {
+     "name": "ScheduleItem",
+     "description": "Items attached to a task; supports custom fields.",
+     "operations": "POST batch /batch/scheduleItems.xml (max 100, atomic); GET list /scheduleItem.xml (filters: item, schedule, item.alternativeIdentifier, schedule.active); GET /scheduleItem/{id}.xml; DELETE /scheduleItem/{id}.xml; DELETE /scheduleItem/schedule/{scheduleAltId}/item/{itemAltId}.xml",
+     "keyFields": "id, schedule(id|altId), item(id|altId), customFields"
+    },
+    {
+     "name": "ScheduleRouting",
+     "description": "Orders up to 50 tasks for an agent by straight-line distance from an origin; returns priority (10,20,30…), estimated arrival, partial/total distances (Google Maps used when estimate=true). Can move tasks from 'Em Preparação' to 'Pendente de Envio'. All tasks need valid GPS coords or error.",
+     "operations": "POST /scheduleRouting.xml (single call, max 50 tasks)",
+     "keyFields": "route (bool, default true), origin.agent.id | origin.geoCoordinate, origin.transportMode (0=car,1=bicycle,2=walking), updateSchedules (default true), startTime, estimate (default false), schedules.schedule(id|altId) with optional dependencies"
+    },
+    {
+     "name": "Message",
+     "description": "Text message (max 500 chars) from center to mobile users; delivered on next sync unless sendNotification triggers immediate push.",
+     "operations": "POST /message.xml",
+     "keyFields": "sender.alternativeIdentifier, recipients.recipient.alternativeIdentifier (repeatable), description (body), sendNotification, hideAnswer"
+    },
+    {
+     "name": "ScheduleNotification",
+     "description": "One-way push notification to agents; not persisted on device (deleted after viewing); delivery may be delayed.",
+     "operations": "POST /scheduleNotification.xml",
+     "keyFields": "message, agents.agent.alternativeIdentifier (repeatable)"
+    }
+   ]
+  },
+  {
+   "group": "Routes / Itineraries",
+   "entities": [
+    {
+     "name": "Itinerary",
+     "description": "Route definition. GETs do NOT return linked activities/locations/people — use the link entities.",
+     "operations": "GET list /itinerary.xml; GET /itinerary/{id}.xml, /itinerary/alternativeIdentifier/{altId}.xml; POST create /itinerary.xml; POST update by id or altId. XML primary, JSON mentioned",
+     "keyFields": "id, description, alternativeIdentifier, origin, agentRelation, displayOrder, active, exclusive, itineraryDefault"
+    },
+    {
+     "name": "ItineraryActivity",
+     "description": "Links activities to itineraries. Field 'comunicationType' misspelled in API (single m).",
+     "operations": "POST batch /batch/itineraryActivities.xml (max 100, atomic); GET list /itineraryActivity.xml (filters: activity, itinerary, itinerary.alternativeIdentifier); GET /itineraryActivity/{id}.xml; DELETE /itineraryActivity/{id}.xml; DELETE /itineraryActivity/itinerary/{itineraryAltId}/activity/{activityAltId}.xml",
+     "keyFields": "id, itinerary, activity, comunicationType (sic)"
+    },
+    {
+     "name": "ItineraryAgent",
+     "description": "Links agents to itineraries.",
+     "operations": "POST batch /batch/itineraryAgents.xml (max 100, atomic); GET list /itineraryAgent.xml (filters: agent, itinerary, itinerary.alternativeIdentifier, agent.alternativeIdentifier); GET /itineraryAgent/{id}.xml; DELETE /itineraryAgent/{id}.xml; DELETE /itineraryAgent/itinerary/{itineraryAltId}/agent/{agentAltId}.xml",
+     "keyFields": "id, itinerary, agent"
+    },
+    {
+     "name": "ItineraryServiceLocal",
+     "description": "Links service locations to itineraries with ordering; treatmentOrder controls route sequence and mobile display order.",
+     "operations": "POST batch /batch/itineraryServiceLocals.xml (max 100, atomic); GET list /itineraryServiceLocal.xml (filters: serviceLocal, itinerary, itinerary.alternativeIdentifier); GET /{id}.xml; DELETE /{id}.xml; DELETE /itineraryServiceLocal/itinerary/{itineraryAltId}/serviceLocal/{serviceLocalAltId}.xml",
+     "keyFields": "id, serviceLocal, itinerary, treatmentOrder (required)"
+    }
+   ]
+  },
+  {
+   "group": "Execution Data (mobile-collected)",
+   "entities": [
+    {
+     "name": "ActivityHistory",
+     "description": "Data collected on mobile during activity execution. List defaults to last 7 days without date filters. API-created histories skip most validations (no photos/GPS, no mandatory/type/formula checks) and require schedule in 'pending send' or 'in field' status. Approval update only while pending approval.",
+     "operations": "GET list /activityHistory.xml (filters: schedule, schedule.alternativeIdentifier, initialStartTimeOnSystem, endStartTimeOnSystem, initialFinishTimeOnSystem, endFinishTimeOnSystem, activity.captureGPS); GET /activityHistory/{id}.xml; GET /activityHistoryHierarchical/{id}.xml (full tree: activity>sections>items>fields>geo); GET /activityHistoryItem/{id}.xml; POST update /activityHistory/{id}.xml (executionExportStatus + exportFileName, or statusApproval 3=approved/4=rejected); POST create /schedule/{scheduleId}/activityHistory.xml and /schedule/alternativeIdentifier/{altId}/activityHistory.xml",
+     "keyFields": "id, activity, schedule, start/finish times (device and system), executionExportStatus, exportFileName, statusApproval, sections/items/fields values, geoCoordinates"
+    },
+    {
+     "name": "GeoCoordinate",
+     "description": "GPS coordinates collected during executions; read-only.",
+     "operations": "GET list /geoCoordinate.xml (params: date, agent, initialDate/finalDate, initialDateTime/finalDateTime); GET /geoCoordinate/{id}.xml",
+     "keyFields": "id, latitude/longitude, date/time, agent, type (enum-like e.g. ON_START_ACTIVITY)"
+    },
+    {
+     "name": "Auditing / AuditingValue",
+     "description": "Device audit data from the mobile app (model, OS, IMEI, battery, signal, app version); read-only; captured from Android app v04.54+.",
+     "operations": "GET list /auditing.xml (filter: history); GET /auditing/{id}.xml; GET /auditingValue.xml (filter: keyInformation); GET /auditingValue/{id}.xml; GET /auditingHierarchical/{historyId}.xml (param values=comma-separated field names e.g. PlatformOS,IMEI)",
+     "keyFields": "id, history, keyInformation, value (device metadata key/value pairs)"
+    }
+   ]
+  },
+  {
+   "group": "Custom Entities & Custom Fields",
+   "entities": [
+    {
+     "name": "CustomEntity",
+     "description": "Customizable registry definition; read-only via API (structure cannot be created/edited, only queried).",
+     "operations": "GET list /customEntity.xml (filters: description, structuralFunction e.g. structuralFunction=mix); GET /customEntity/{id}.xml (includes custom field definitions)",
+     "keyFields": "id, description, structuralFunction, custom field definitions"
+    },
+    {
+     "name": "CustomEntityEntry",
+     "description": "Records inside a custom entity; full read/write. Custom field names encode spaces as double underscores.",
+     "operations": "GET list /customEntity/{entityId}/customEntityEntry.xml (filters: description, customField altId=value); GET entry by ids or by /customEntity/alternativeIdentifier/{entityAltId}/customEntityEntry/alternativeIdentifier/{entryAltId}.xml; POST create (by entity id or altId); POST update (by ids or altIds); POST batch /batch/customEntity/alternativeIdentifier/{entityAltId}/customEntityEntries.xml (upsert via alternativeIdentifier)",
+     "keyFields": "id, description (required), alternativeIdentifier, active, customFields (required on create)"
+    },
+    {
+     "name": "CustomField / CustomFieldValue",
+     "description": "Custom field definitions and values attached to any entity (agent, serviceLocal, item, schedule...). Updating multi-valued fields REPLACES all existing values. Payload sent as data= param; complex values require CDATA.",
+     "operations": "GET /{entityName}/{entityId}/customField.xml (filters: description, active); GET /{entityName}/{entityId}/customField/{id}.xml and .../alternativeIdentifier/{altId}.xml; POST value to same paths; POST batch /batch/{entityName}/{entityId}/customFields.xml and /batch/{entityName}/alternativeIdentifier/{entityAltId}/customFields.xml",
+     "keyFields": "field id, alternativeIdentifier, description, active, value(s) (pipe-separated for multi-select)"
+    },
+    {
+     "name": "Mix de Produtos (MixType / Mix / MixItem)",
+     "description": "Product Mix feature implemented as three auto-generated custom entities (structuralFunction=mix): Tipo de Mix (MIXTYPE), Mix (MIX), Itens do Mix (MIXITEM). All operations go through the generic customEntity/customEntityEntry API with environment-specific entity IDs discovered via customEntity.xml?structuralFunction=mix. Cross-references via custom fields: mix_mixType, mixItem_mix, mixItem_item, mixItem_order (mobile display order).",
+     "operations": "POST/GET on /customEntity/{envSpecificEntityId}/customEntityEntry.xml (+ /{recordId}.xml; filter e.g. ?mixItem_mix={mixRecordId})",
+     "keyFields": "description, alternativeIdentifier, customFields: mix_mixType, mixItem_mix, mixItem_item, mixItem_order"
+    }
+   ]
+  },
+  {
+   "group": "File Import / Export",
+   "entities": [
+    {
+     "name": "ImportFiles",
+     "description": "Schedules files already placed on the customer's FTP for import; multiple entries in one request form a single sequentially-processed package.",
+     "operations": "POST /importfiles.xml (note lowercase path) with body <import><files><entry name=\"FILENAME\"/></files></import>",
+     "keyFields": "files.entry@name (repeatable)"
+    },
+    {
+     "name": "ImportLayout",
+     "description": "Import model configurations; read-only. Nested field definitions carry a mandatory flag marking required template columns.",
+     "operations": "GET list /importLayout.xml (filter: description); GET /importLayout/{id}.xml; GET /importLayout/entity/{entity}.xml (e.g. entity=item)",
+     "keyFields": "id, description, active, filePrefix, fields[] (id, name, active, mandatory)"
+    },
+    {
+     "name": "ExportLayout",
+     "description": "Export model configurations; read-only.",
+     "operations": "GET list /exportLayout.xml (filter: description); GET /exportLayout/{id}.xml",
+     "keyFields": "id, description, nested field definitions"
+    }
+   ]
+  }
+ ],
+ "openQuestions": [
+  "Canonical host: docs variously show api.umov.me, center.umov.me, and umovme.octacx.com, and http vs https. Confirm https://api.umov.me is the single production host and whether the SDK needs a configurable host (e.g. for the octacx environment).",
+  "POST body transport: some pages wrap the XML in a form-encoded 'data' parameter, others show raw XML bodies. Confirm whether data= form-encoding works (or is required) on ALL POST endpoints, so the SDK can standardize on one transport.",
+  "JSON support: itinerary, itineraryAgent, and scheduleItem pages mention JSON via .json extension; the getting-started guide is XML-only. Confirm which resources (if any) reliably support JSON — this decides whether the SDK needs an XML layer at all or can offer dual serialization.",
+  "Pagination scope: paging.page with 100 records/page is documented on the guide and schedule pages only. Confirm it applies uniformly to every list endpoint, whether page numbering is 1-based, and whether there is any total-count/last-page indicator beyond <size>.",
+  "Meaning of <size> in list responses: page size vs total record count across pages — affects SDK auto-pagination logic.",
+  "Upsert semantics: docs say 'for updates only alternativeIdentifier is mandatory' on nearly every entity, and batch endpoints upsert by alternativeIdentifier. Confirm whether a non-batch POST to the collection path with an existing alternativeIdentifier updates (upsert) or errors as duplicate.",
+  "Error response body format: HTTP status codes are listed but the XML error payload structure (error message envelope) is undocumented — needed for typed SDK error handling. Also confirm 429 response details (Retry-After header?).",
+  "POST /token.xml request schema: exact XML body field names for login credentials, and response schema, are not shown in the extracts.",
+  "DELETE coverage: DELETE is documented only for link entities (scheduleItem, itinerary* links, sectionSubGroup, serviceLocalActivity, team agent). Confirm master-data entities (item, agent, serviceLocal, schedule) truly cannot be deleted via API, only deactivated (active=false) or cancelled (schedule situation 70).",
+  "Suspected doc typos to verify against the live API: Group by-altId path shown without slash (/group/alternativeIdentifier{altId}.xml), itemCategory path shown as 'alternativedentifier', schedule custom-field search shown as /schedule/.xml?..., section/sectionField by-altId paths shown without .xml suffix, and sectionSubGroup DELETE success message referencing scheduleItem.",
+  "Batch endpoint inventory and limits: confirmed batches exist for items, serviceLocals, schedules (50), agentActivities, itineraryActivities, itineraryAgents, itineraryServiceLocals, scheduleItems, serviceLocalActivities, sectionSubGroups, customEntityEntries, customFields. Confirm whether agent, subGroup, and other master entities also have batch endpoints (not documented in these extracts) and whether the max is uniformly 100 except schedules.",
+  "Rate limiting: 4 req/s 'per IP/token' — confirm whether it is per IP, per token, or the pair, and blocking duration after 429, to design SDK throttling.",
+  "Filter parameter coverage: only a few filter params are exemplified per entity; sectionField page hints 'other entity fields likely usable'. Confirm the general rule (any entity field, plus dotted nested fields, plus custom-field altIds) so the SDK can expose a generic filter builder vs typed filters.",
+  "Custom-entity IDs for Mix (ID_CADASTRO_MIX etc.) are environment-specific — should the SDK discover them at runtime via structuralFunction=mix, or accept them as config?",
+  "ActivityHistory creation: confirm response format and whether created histories can include agent/times, and the exact list of statuses accepted for the parent schedule ('pending send'/'in field' codes 30/40?).",
+  "Character escaping: the CDATA + %25/%26 rule is documented for request values; confirm whether responses come back with the same encoding (SDK must decode) and whether the rule applies to query-string filter values too.",
+  "Team membership add endpoint (POST /team/{teamId}/agent.xml) body schema (agent by id only, or altId too?) and 'responsible' flag semantics.",
+  "ScheduleRouting: confirm the response schema (priority/ETA/distances element names) and whether the estimate-persistence fields require Help Desk enablement per environment.",
+  "Callback service: confirm retry policy details (interval/count) for non-200 responses on the XML variant, and whether the JSON variant retries at all."
+ ]
+}

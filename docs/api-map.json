@@ -1,0 +1,1848 @@
+[
+ {
+  "url": "https://umovme.octacx.com/a/primeiros-passos-com-a-integração-via-api/",
+  "title": "Primeiros passos com a integração via API",
+  "summary": "Getting-started guide for the uMov.me field-service REST API. Explains how to obtain an API token (via the Center settings UI or POST /token.xml with login credentials), the URL structure with the token embedded in the path, and the XML-based request/response format. Shows example calls for agents, schedules, service locations and items, response envelope structure (<result> with resourceName/resourceId/link or size/entries), HTTP status codes, pagination via paging.page, and the 4 requests/second rate limit. It is a guide page rather than documentation of a single entity.",
+  "entity": "",
+  "baseUrl": "https://api.umov.me/CenterWeb/api/{token}/",
+  "auth": "API token embedded in the URL path after /CenterWeb/api/. Token is a hex string generated in the Center's API settings, or obtained via POST /token.xml with login credentials in XML body. Regenerating the token invalidates existing integrations. Token required on every request; 401 returned for invalid key.",
+  "dataFormat": "XML (resources addressed with .xml suffix in both requests and responses)",
+  "endpoints": [
+   {
+    "method": "POST",
+    "path": "/token.xml",
+    "description": "Generate/retrieve authentication token using login credentials in XML body"
+   },
+   {
+    "method": "GET",
+    "path": "/{token}/serviceLocal/{id}.xml",
+    "description": "Retrieve a specific service location by internal id"
+   },
+   {
+    "method": "GET",
+    "path": "/{token}/agent.xml",
+    "description": "List agents; supports filtering",
+    "params": "name, active=true"
+   },
+   {
+    "method": "GET",
+    "path": "/{token}/schedule.xml",
+    "description": "List schedules; supports pagination",
+    "params": "paging.page"
+   },
+   {
+    "method": "POST",
+    "path": "/{token}/item.xml",
+    "description": "Create/update an item, including custom fields (multi-select values pipe-separated)"
+   }
+  ],
+  "fields": "",
+  "pagination": "Query parameter paging.page={n}; without it only the first page is returned by default.",
+  "notes": "HTTP codes: 200 success (GET/update), 201 created (POST insert), 400 malformed request, 401 invalid API key, 404 not found, 429 rate limit exceeded, 501 entity not available via API, 504 server timeout. Rate limit: max 4 requests/second per IP/token, excess blocked. Multi-select custom field values are pipe-separated (e.g. alternativeIdentifier>0|1). Single-resource responses return <result> with resourceName, resourceId, link; list responses return <result> with resourceName, size, entries.",
+  "additionalLinks": []
+ },
+ {
+  "url": "https://umovme.octacx.com/a/activity-atividade/",
+  "title": "Activity (Atividade) - uMov.me API",
+  "summary": "Documents the Activity (Atividade) entity of the uMov.me field-service REST API. Covers three GET endpoints for listing activities (with description and insert-datetime filters), fetching a specific activity by numeric ID, and fetching by alternative identifier. All examples use XML with the API key embedded in the URL path under /CenterWeb/api/{apiKey}/. Lists the full field set of the Activity entity, including GPS/execution configuration flags and nested references (sections, mathExpressions, logicalExpressions).",
+  "entity": "Activity (Atividade)",
+  "baseUrl": "/CenterWeb/api/{apiKey}/",
+  "auth": "API key passed in the URL path as {apiKey}: /CenterWeb/api/{apiKey}/...",
+  "dataFormat": "XML (.xml suffix on all endpoints; JSON not mentioned)",
+  "endpoints": [
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/activity.xml",
+    "description": "List all activities; returns entries with id and link /activity/{id}.xml",
+    "params": "description (optional), initialInsertDateTime (optional, YYYY-MM-DD HH:MM:SS), finalInsertDateTime (optional, YYYY-MM-DD HH:MM:SS)"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/activity/{id}.xml",
+    "description": "Get detailed data of a specific activity by numeric ID",
+    "params": "id (path)"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/activity/alternativeIdentifier/{alternativeIdentifier}.xml",
+    "description": "Get an activity by its alternative identifier instead of numeric ID",
+    "params": "alternativeIdentifier (path)"
+   }
+  ],
+  "fields": "id: Integer, required (system identifier); description: String, required; alternativeIdentifier: String, optional (required only for record updates); active: Boolean, required; sections: Object, optional (nested refs with id + link); comunicationType: Integer, required; executionType: Integer, required; loopExecution: Boolean, required; showsSessionWebForm: Boolean, required; confirmClose: Integer, required; acceleratedExecution: Boolean, required; confirmWithoutGPS: Boolean, required; GPSIsMandatory: Boolean, required; captureGPS: Boolean, required; locked: Boolean, required; documentation: String, optional; mathExpressions: Object, optional (nested refs); logicalExpressions: Object, optional (nested refs)",
+  "pagination": "Not mentioned on this page",
+  "notes": "For record updates, only the alternativeIdentifier is required. Nested objects (sections, mathExpressions, logicalExpressions) are returned as references with id and link attributes; links follow the pattern /resourceType/{id}.xml. No error codes, rate limits, or character-escaping rules mentioned on this page.",
+  "additionalLinks": []
+ },
+ {
+  "url": "https://umovme.octacx.com/a/agent-activity-atividades-dos-agentes/",
+  "title": "Agent Activity - Atividades dos Agentes",
+  "summary": "Documents the uMov.me Agent Activity resource, which links agents to activities. It provides a GET endpoint to query agent activities and a batch POST endpoint to create up to 100 agent-activity associations per request. Both agent and activity are referenced by alternativeIdentifier. Data format is XML, authenticated via an API key embedded in the URL path. Batch operations are atomic: any error aborts the whole operation and nothing is inserted. Successful batch responses return a result block with resourceName, size, and entry elements containing id and resource link (e.g. /agentActivity/1803794.xml).",
+  "entity": "AgentActivity",
+  "endpoints": [
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/agentActivity.xml",
+    "description": "Query/list agent activities"
+   },
+   {
+    "method": "POST",
+    "path": "/CenterWeb/api/{apiKey}/batch/agentActivities.xml",
+    "description": "Bulk create agent-activity associations (max 100 per request); atomic all-or-nothing",
+    "params": "XML body with agentActivity elements"
+   }
+  ],
+  "fields": "agent.alternativeIdentifier (string, required) - agent identifier; activity.alternativeIdentifier (string, required) - activity identifier",
+  "auth": "API key embedded in URL path: /CenterWeb/api/{apiKey}/... No hostname explicitly shown on page (uMov.me API host, typically api.umov.me, not stated here).",
+  "baseUrl": "/CenterWeb/api/{apiKey}/ (host not explicitly stated on page)",
+  "dataFormat": "XML",
+  "pagination": "Not documented on this page",
+  "notes": "Batch limit: 100 agent activities per request. Batch is atomic: if any error occurs the entire operation is aborted and no records are inserted. Successful POST returns <result> with <resourceName>agentActivity</resourceName>, <size>, and <entries> containing <entry id link> elements (e.g. link /agentActivity/1803794.xml). No error codes, pagination, or query params documented.",
+  "additionalLinks": []
+ },
+ {
+  "url": "https://umovme.octacx.com/a/agenttype-tipo-de-agente/",
+  "title": "AgentType (Tipo de Agente)",
+  "summary": "Documents the uMov.me AgentType REST API (\"Quem?\" dimension of uMov.me). Supports listing, fetching by id or alternativeIdentifier, creating, and updating agent types via XML over HTTP. Requests go to /CenterWeb/api/{apiKey}/ with the API key embedded in the URL path. Entity is simple: id, description, alternativeIdentifier, active. For record updates, only alternativeIdentifier is mandatory. List responses return resourceName, size, and entries with id + link per record.",
+  "entity": "AgentType",
+  "baseUrl": "/CenterWeb/api/{$apiKey}/",
+  "auth": "API key embedded in URL path: /CenterWeb/api/{$apiKey}/...",
+  "dataFormat": "XML",
+  "endpoints": [
+   {
+    "method": "GET",
+    "path": "/agentType.xml",
+    "description": "List all agent types",
+    "params": "description, active (optional filters)"
+   },
+   {
+    "method": "GET",
+    "path": "/agentType/{id}.xml",
+    "description": "Fetch a specific agent type by id",
+    "params": "id (path)"
+   },
+   {
+    "method": "GET",
+    "path": "/agentType/alternativeIdentifier/{alternativeIdentifier}.xml",
+    "description": "Fetch agent type by alternative identifier",
+    "params": "alternativeIdentifier (path)"
+   },
+   {
+    "method": "POST",
+    "path": "/agentType.xml",
+    "description": "Create a new agent type",
+    "params": "XML body"
+   },
+   {
+    "method": "POST",
+    "path": "/agentType/{id}.xml",
+    "description": "Update an existing agent type",
+    "params": "id (path), XML body"
+   }
+  ],
+  "fields": "id: Integer (system-generated, auto); description: String (required); alternativeIdentifier: String (required only field for updates); active: Boolean (optional)",
+  "pagination": "Not documented; list responses include resourceName, size, and entries (each with id and link)",
+  "notes": "For updating an existing record, only alternativeIdentifier is required. No pagination, error codes, or rate limits documented on this page.",
+  "additionalLinks": []
+ },
+ {
+  "url": "https://umovme.octacx.com/a/atividades-e-relacionados-section-subgroup-subgrupo-da-seção/",
+  "title": "Section SubGroup (Subgrupo da Seção) - Atividades e Relacionados",
+  "entity": "SectionSubGroup",
+  "summary": "Documents the sectionSubGroup resource of the uMov.me REST API, which links a subGroup (subgroup of agents/items) to a section of an activity. It covers insert, update, batch insert/update (max 100 records), search (all, by section, by id), and delete by internal or alternative identifiers. Requests use XML payloads against paths of the form /CenterWeb/api/{apiKey}/sectionSubGroup.xml, with the API key embedded in the URL path. Nested subGroup and section structures are shown in payload examples.",
+  "baseUrl": "https://umovme.octacx.com/CenterWeb/api/ (production uMov.me: /CenterWeb/api/{apiKey}/...)",
+  "auth": "API key embedded in the URL path: /CenterWeb/api/{$apiKey}/resource.xml",
+  "dataFormat": "XML (resource suffix .xml)",
+  "pagination": "Not mentioned on this page",
+  "endpoints": [
+   {
+    "method": "POST",
+    "path": "/CenterWeb/api/{apiKey}/sectionSubGroup.xml",
+    "description": "Insert a subgroup into a section",
+    "params": "XML body with sectionSubGroup containing subGroup and section"
+   },
+   {
+    "method": "POST",
+    "path": "/CenterWeb/api/{apiKey}/sectionSubGroup/{subGroupAltId}/{sectionAltId}.xml",
+    "description": "Update section-subgroup relationship by alternative identifiers",
+    "params": "XML body; only alternativeIdentifier mandatory for updates"
+   },
+   {
+    "method": "POST",
+    "path": "/CenterWeb/api/{apiKey}/batch/sectionSubGroups.xml",
+    "description": "Batch insert/update, max 100 records; aborts entirely on any error",
+    "params": "XML batch body"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/sectionSubGroup.xml",
+    "description": "List/search all section subgroups",
+    "params": "section={id} optional filter"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/sectionSubGroup/{id}.xml",
+    "description": "Retrieve a specific sectionSubGroup record by id"
+   },
+   {
+    "method": "DELETE",
+    "path": "/CenterWeb/api/{apiKey}/sectionSubGroup/{subGroupId}/{sectionId}.xml",
+    "description": "Delete relationship by internal IDs (also accepts alternative identifiers in same positions)"
+   }
+  ],
+  "fields": "sectionSubGroup: id (integer, auto-generated). Nested subGroup: id (integer), alternativeIdentifier (string, required for updates), description (string), active (boolean). Nested section: id (integer), alternativeIdentifier (string), description (string), order (integer), active (boolean), mandatory (0/1), useItem (0/1), findItemsByIdentifier (boolean), itemFillMode (integer), groupingItemsTypeOnMobile (integer), activityHistoryReportType (string, e.g. \"V\"), displayItemsInMobile (0/1), seeItemsCollectedAutomatically (boolean), quizMode (boolean), locked (boolean), markCompleteGroup (boolean), documentation (string), executionWayItem (integer), cleanFilterSearchItem (boolean)",
+  "notes": "Batch limited to 100 records per request; whole batch aborts if any record errors. Internal IDs and alternativeIdentifier are interchangeable in path segments. For updates only the alternativeIdentifier is mandatory. Successful DELETE returns HTTP 200 with message \"scheduleItem: scheduleItem.item.exclusion.successful\" (apparent copy-paste quirk from scheduleItem docs).",
+  "additionalLinks": []
+ },
+ {
+  "url": "https://umovme.octacx.com/a/auditing-auditoria/",
+  "title": "Auditing (Auditoria) - uMov.me API",
+  "summary": "Documents the Auditing (Auditoria) entity of the uMov.me field-service REST API, which exposes device audit data collected by the mobile app (device model, OS, IMEI, battery level, signal, app version, etc.). The API is read-only for this entity: records can only be queried, not created. It provides endpoints to list auditing records (filterable by history), fetch a specific auditing record, fetch/search individual auditing values by keyInformation, and a hierarchical endpoint returning all audit values for a given history in one call with optional field filtering. Requests use an API key embedded in the URL path and return XML. Data capture starts from mobile app version 04.54 on Android.",
+  "entity": "Auditing",
+  "baseUrl": "https://umovme.octacx.com/CenterWeb/api/",
+  "auth": "API key embedded in URL path: /CenterWeb/api/{apiKey}/...",
+  "dataFormat": "XML",
+  "endpoints": [
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/auditing.xml",
+    "description": "List all auditing records",
+    "params": "history (optional, filter by history ID)"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/auditing/{AUDITING_ID}.xml",
+    "description": "Get all data for a specific auditing record",
+    "params": "AUDITING_ID (path, required)"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/auditingValue/{AUDITINGVALUE_ID}.xml",
+    "description": "Get a specific auditing value",
+    "params": "AUDITINGVALUE_ID (path, required)"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/auditingValue.xml",
+    "description": "Search auditing values",
+    "params": "keyInformation (optional filter)"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/auditingHierarchical/{HISTORY_ID}.xml",
+    "description": "Get all audit values for a specific history in one call",
+    "params": "values (optional, comma-separated field list e.g. PlatformOS,IMEI)"
+   }
+  ],
+  "fields": "Auditing: id (integer), date (datetime, \"YYYY-MM-DD HH:mm:ss\"), moment (integer), agent.id (integer), agent.name (string), agent.login (string), agent.active (boolean), schedule.id (integer), schedule.alternativeIdentifier (integer), schedule.hour (time), history.id (integer), auditingValues (collection). AuditingValue: id (integer), keyInformation (string), valueInformation (string). Known keyInformation values: PlatformOS, uMovVersion, PlatformAPILevel, IMSI, IMEI, BatteryLevel, DeviceSerialNumber, DeviceManufacturer, DeviceModel, PhoneNumber, SignalLevel.",
+  "pagination": "Not mentioned on this page.",
+  "notes": "Read-only entity: only search/retrieval via API is possible, inclusion (POST) is not allowed. Audit data capture only from mobile app version 04.54 on Android. Hierarchical endpoint supports comma-separated field filtering via the \"values\" query param. No error codes or rate limits documented on this page.",
+  "additionalLinks": []
+ },
+ {
+  "url": "https://umovme.octacx.com/a/cadastros-e-campos-customizáveis-custom-entity-cadastro-customizável/",
+  "title": "Cadastros e campos customizáveis (Custom Entity - Cadastro Customizável)",
+  "summary": "Documents the uMov.me Custom Entity API for querying customizable registries (custom entities) and creating/updating their entries. Custom entity definitions are read-only via API; only their entries can be created and edited. Endpoints cover listing entities, fetching entity details, and CRUD-lite operations on entries by internal ID or alternativeIdentifier, plus a batch upsert endpoint. Requests use XML with the API key embedded in the URL path (/CenterWeb/api/{apiKey}/). Custom field names replace spaces with double underscores (e.g. numero__da__nota__fiscal).",
+  "entity": "CustomEntity / CustomEntityEntry",
+  "baseUrl": "/CenterWeb/api/{apiKey}/",
+  "auth": "API key passed as a path segment in the URL: /CenterWeb/api/{apiKey}/...",
+  "dataFormat": "XML (endpoints use .xml suffix; POST bodies sent as data= XML payload)",
+  "pagination": "Not documented on this page (list responses return resource count and entry links)",
+  "fields": "CustomEntity: id (integer, system-generated), description (string, required), alternativeIdentifier (string, required for updates), active (boolean), labelDescription (string), descriptionAlternativeIdentifier (string), customFields (object: custom field definitions). CustomEntityEntry: id (integer, system-generated), description (string, required on create), alternativeIdentifier (string, required for updates), active (boolean), customFields (dynamic object of custom field values; field names use double underscores for spaces)",
+  "endpoints": [
+   {
+    "method": "GET",
+    "path": "/customEntity.xml",
+    "description": "List all custom entities",
+    "params": "description (optional filter)"
+   },
+   {
+    "method": "GET",
+    "path": "/customEntity/{id}.xml",
+    "description": "Get a specific custom entity with its custom field definitions"
+   },
+   {
+    "method": "GET",
+    "path": "/customEntity/{entityId}/customEntityEntry.xml",
+    "description": "List entries of a custom entity",
+    "params": "description (optional filter)"
+   },
+   {
+    "method": "GET",
+    "path": "/customEntity/{entityId}/customEntityEntry/{entryId}.xml",
+    "description": "Get a specific entry by internal IDs"
+   },
+   {
+    "method": "GET",
+    "path": "/customEntity/alternativeIdentifier/{entityAltId}/customEntityEntry/alternativeIdentifier/{entryAltId}.xml",
+    "description": "Get a specific entry by alternative identifiers"
+   },
+   {
+    "method": "POST",
+    "path": "/customEntity/{entityId}/customEntityEntry.xml",
+    "description": "Create entry in a custom entity",
+    "params": "description (required), customFields (required), alternativeIdentifier, active"
+   },
+   {
+    "method": "POST",
+    "path": "/customEntity/alternativeIdentifier/{entityAltId}/customEntityEntry.xml",
+    "description": "Create entry using entity alternative identifier"
+   },
+   {
+    "method": "POST",
+    "path": "/customEntity/{entityId}/customEntityEntry/{entryId}.xml",
+    "description": "Update existing entry by internal IDs (only alternativeIdentifier mandatory)"
+   },
+   {
+    "method": "POST",
+    "path": "/customEntity/{entityAltId}/customEntityEntry/alternativeIdentifier/{entryAltId}.xml",
+    "description": "Update entry using alternative identifiers"
+   },
+   {
+    "method": "POST",
+    "path": "/batch/customEntity/alternativeIdentifier/{entityAltId}/customEntityEntries.xml",
+    "description": "Batch upsert of multiple entries; alternativeIdentifier decides insert vs update",
+    "params": "data= XML payload wrapped in <customEntityEntries>"
+   }
+  ],
+  "notes": "Custom entity definitions are read-only via API (cannot create/edit the entity structure, only its entries). Updates require only the alternativeIdentifier; other fields are optional. Custom field names encode spaces as double underscores (e.g. numero__da__nota__fiscal). Batch endpoint performs upsert logic. No pagination, error codes, or rate limits documented on this page.",
+  "additionalLinks": []
+ },
+ {
+  "url": "https://umovme.octacx.com/a/código-ascii-para-escapar-caracteres-api/",
+  "title": "Código ASCII para escapar caracteres - API",
+  "summary": "Guide page (not an entity reference) explaining how to escape special characters in uMov.me API requests. Values with special characters must be wrapped in XML CDATA sections, and certain characters must additionally be percent-escaped by ASCII code: % as %25 and & as %26 (e.g. <![CDATA[%25]]>). Line breaks inside values are represented literally inside CDATA, and the whitespace/line break between the lines must be preserved for it to work. For other special characters the page refers to an external XML FAQ (http://xml.silmaril.ie/cgi-bin/search-faq?term=). No endpoints, entities, authentication or pagination are documented on this page.",
+  "entity": "",
+  "endpoints": [],
+  "dataFormat": "XML (values wrapped in CDATA sections)",
+  "auth": "",
+  "baseUrl": "",
+  "pagination": "",
+  "notes": "Escape table: % -> %25, & -> %26, wrapped in CDATA (e.g. <observation><![CDATA[%26]]></observation>). Line breaks: include the literal line break inside CDATA and preserve the whitespace between lines (e.g. <observation><![CDATA[teste\\nteste2]]></observation>). Other special characters: consult http://xml.silmaril.ie/cgi-bin/search-faq?term=. Relevant for SDK: implement a CDATA + percent-escape encoder for XML payload string fields.",
+  "fields": "",
+  "additionalLinks": []
+ },
+ {
+  "url": "https://umovme.octacx.com/a/custom-field-custom-field-value-campo-customizável-valor-campo-customizável/",
+  "title": "Custom Field / Custom Field Value (Campo Customizável / Valor Campo Customizável)",
+  "summary": "Documents the uMov.me REST API for custom fields (Campo Customizável) and their values attached to entities such as agent, serviceLocal, item and schedule. Covers GET endpoints to list custom fields per entity, fetch by internal ID or alternative identifier (with description/active filters), and POST endpoints to create/update single custom field values or batch-update multiple values, including routing by alternative identifiers. Data is exchanged in XML, sent via a 'data' body parameter, with CDATA required for complex values; API-key authentication is embedded in the request. When updating multi-valued fields, all existing values are replaced by the new ones.",
+  "entity": "CustomField / CustomFieldValue",
+  "baseUrl": "http://api.umov.me/CenterWeb/api/",
+  "auth": "API key required on all requests ({$apiKey} parameter)",
+  "dataFormat": "XML (POST body sent as 'data' parameter; CDATA wrapping for complex values)",
+  "endpoints": [
+   {
+    "method": "GET",
+    "path": "/{nomeEntidade}/{idEntidade}/customField.xml",
+    "description": "List custom fields of an entity instance, with optional filters",
+    "params": "description, active"
+   },
+   {
+    "method": "GET",
+    "path": "/{nomeEntidade}/{idEntidade}/customField/{id}.xml",
+    "description": "Get a specific custom field by internal ID"
+   },
+   {
+    "method": "GET",
+    "path": "/{nomeEntidade}/{idEntidade}/customField/alternativeIdentifier/{idAlternativo}.xml",
+    "description": "Get a custom field by alternative identifier"
+   },
+   {
+    "method": "POST",
+    "path": "/{nomeEntidade}/{idEntidade}/customField/{id}.xml",
+    "description": "Create/update a single custom field value",
+    "params": "data (XML payload)"
+   },
+   {
+    "method": "POST",
+    "path": "/{nomeEntidade}/{idEntidade}/customField/alternativeIdentifier/{idAlternativo}.xml",
+    "description": "Create/update a custom field value using field alternative identifier",
+    "params": "data (XML payload)"
+   },
+   {
+    "method": "POST",
+    "path": "/batch/{nomeEntidade}/{idEntidade}/customFields.xml",
+    "description": "Batch create/update custom field values for an entity",
+    "params": "data (XML payload)"
+   },
+   {
+    "method": "POST",
+    "path": "/batch/{nomeEntidade}/alternativeIdentifier/{idAltEntidade}/customFields.xml",
+    "description": "Batch create/update custom field values using the entity's alternative identifier",
+    "params": "data (XML payload)"
+   }
+  ],
+  "fields": "CustomField: id (Integer, read-only), fieldType (String, required, e.g. \"L\" = list), alternativeIdentifier (String, only field mandatory for registry updates), description (String, required), size (Integer, required), active (Boolean, required), entity (Integer, required), viewQueryOnMobile (Boolean, optional). CustomFieldValue: internalValue (String, required), externalValue (String, required). Applicable entities ({nomeEntidade}): agent, serviceLocal, item, schedule.",
+  "pagination": "List responses return <resourceName>, <size> and <entries> with id and link attributes per entry; no explicit page/offset parameters documented on this page.",
+  "notes": "Updating multi-valued custom fields replaces ALL existing values with the new set. XML payload must be sent in a POST parameter named 'data'. Complex XML values must be wrapped in CDATA. Batch endpoints support routing by the parent entity's alternative identifier.",
+  "additionalLinks": []
+ },
+ {
+  "url": "https://umovme.octacx.com/a/dados-coletados-no-mobile-activityhistory-histórico-de-execução-de-atividades/",
+  "title": "Dados coletados no mobile - ActivityHistory (Histórico de Execução de Atividades)",
+  "summary": "Documents the ActivityHistory entity of the uMov.me CenterWeb REST API, which represents data collected on mobile during field activity execution. Covers listing histories (default last 7 days) with time/schedule filters, retrieving a history in flat or hierarchical form (activity, schedule, sections, items, fields, geo-coordinates), fetching individual history items, updating export/approval status, and creating histories against a schedule (by ID or alternativeIdentifier). Requests use XML payloads sent as a 'data' POST parameter; the API key is embedded in the URL path. Also describes an opt-in callback feature that POSTs XML to a customer URL when a history arrives, requiring an HTTP 200 response.",
+  "entity": "ActivityHistory",
+  "baseUrl": "http://api.umov.me/CenterWeb/api/{apiKey}",
+  "auth": "API key passed as a path segment in the URL: /CenterWeb/api/{apiKey}/...",
+  "dataFormat": "XML (extension .xml on resources; POST body sent as form-encoded 'data' parameter containing XML)",
+  "endpoints": [
+   {
+    "method": "GET",
+    "path": "/activityHistory.xml",
+    "description": "List activity histories (default last 7 days); returns IDs and links only",
+    "params": "schedule, schedule.alternativeIdentifier, initialStartTimeOnSystem, endStartTimeOnSystem, initialFinishTimeOnSystem, endFinishTimeOnSystem, activity.captureGPS"
+   },
+   {
+    "method": "GET",
+    "path": "/activityHistoryHierarchical/{id}.xml",
+    "description": "Get full hierarchical history: activity, schedule, sections, items, fields, geo-coordinates"
+   },
+   {
+    "method": "GET",
+    "path": "/activityHistory/{id}.xml",
+    "description": "Get a specific activity history with activity, schedule, times, and linked item list"
+   },
+   {
+    "method": "GET",
+    "path": "/activityHistoryItem/{id}.xml",
+    "description": "Get a history item: section, item, field details and captured value"
+   },
+   {
+    "method": "POST",
+    "path": "/activityHistory/{id}.xml",
+    "description": "Update history: mark as exported (executionExportStatus, exportFileName) or set approval status (statusApproval 3=approved, 4=rejected; only when pending approval)",
+    "params": "data (XML payload)"
+   },
+   {
+    "method": "POST",
+    "path": "/schedule/{scheduleId}/activityHistory.xml",
+    "description": "Create an activity history for a schedule (hierarchical XML: activity > sections > items > fields; references by alternativeIdentifier)",
+    "params": "data (XML payload)"
+   },
+   {
+    "method": "POST",
+    "path": "/schedule/alternativeIdentifier/{scheduleIdentifier}/activityHistory.xml",
+    "description": "Create an activity history using the schedule's alternative identifier",
+    "params": "data (XML payload)"
+   }
+  ],
+  "fields": "ActivityHistory: id:int; startTimeOnSystem:datetime(YYYY-MM-DD HH:MM:SS); finishTimeOnSystem:datetime; dataSource:int; status:boolean; executionExportStatus:boolean; exportFileName:string(optional); biExportStatus:boolean; numberPicturesTaken:int; numberPicturesReceived:int; statusApproval:int(3=approved,4=rejected). Nested Activity: id:int; description:string; alternativeIdentifier:string; takePictures:boolean; loopExecution:boolean. Nested Schedule: id:int; alternativeIdentifier:string; date:date; hour:time(HH:MM); executionHour:time; priority:int; active:boolean. Nested Section: id:int; description:string; alternativeIdentifier:string; mandatory:boolean; active:boolean. Nested Field: id:int; description:string; alternativeIdentifier:string; type:char(A=alphanumeric,N=numeric,L=list); size:int; nullable:boolean; updatable:boolean; visible:boolean. Nested FieldHistory: value:string; valueForExhibition:string(display value for lists); status:boolean. Nested GeoCoordinate: id:int; latitude:decimal; longitude:decimal; date:date; hour:time(HHmmss); type:string(e.g. ON_START_ACTIVITY); gpsEnabled:boolean; networkEnabled:boolean; observation:string",
+  "pagination": "Not documented on this page; listing defaults to records from the last 7 days when no date filters are given",
+  "notes": "Query params: spaces must be encoded as %20 and colons as %3A. Creation requires the schedule to be in \"pending send\" or \"in field\" status. Via API creation: photo/multimedia fields cannot be created; GPS coordinates cannot be included; field type/size/list-value validation and mandatory-field validation are NOT enforced; value/validation formulas are not executed; item-to-section linkage is not validated (item just must exist). Approval update allowed only when history is pending approval. Callback feature (enabled by support) POSTs XML (schedule alternativeIdentifier + activityHistory ids) as 'data' param to a customer URL; requires a schedule custom alphanumeric field with alternativeIdentifier=\"callback\"; must return HTTP 200 or it retries/logs error; called once per history.",
+  "additionalLinks": []
+ },
+ {
+  "url": "https://umovme.octacx.com/a/geocoordinate-geocoordenadas/",
+  "title": "GeoCoordinate (GeoCoordenadas)",
+  "summary": "Documents the uMov.me GeoCoordinate resource, used to query GPS coordinates collected during activity executions by field agents. Provides read-only (GET) endpoints to list geocoordinates filtered by date, date/datetime range, and agent, and to fetch a specific geocoordinate by id. Responses are XML; list responses include resourceName, size, and entries with id and link attributes. Authentication is via an API key embedded in the URL path (/CenterWeb/api/{apiKey}/...).",
+  "entity": "GeoCoordinate",
+  "endpoints": [
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/geoCoordinate.xml",
+    "description": "Search geocoordinates collected in activity executions",
+    "params": "date (required for single-date search), agent, initialDate, finalDate, initialDateTime, finalDateTime (YYYY-MM-DD HH:MM:SS)"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/geoCoordinate/{id}.xml",
+    "description": "Get detailed data for a specific geocoordinate record"
+   }
+  ],
+  "fields": "id: integer; agent: reference; date: date; hour: time; latitude: decimal; longitude: decimal; type: string (e.g. ON_START_ACTIVITY); observation: string; provider: string; withGps: boolean; gpsEnabled: boolean; networkEnabled: boolean; activityHistory: reference. Required flags not documented (read-only entity).",
+  "auth": "API key in URL path: /CenterWeb/api/{apiKey}/...",
+  "baseUrl": "/CenterWeb/api (relative; no host shown on page)",
+  "dataFormat": "XML",
+  "pagination": "Not documented on this page; list response includes size and entries with id + link attributes",
+  "notes": "Read-only resource (GET only). Enum-like type field values such as ON_START_ACTIVITY. No error codes, rate limits, or escaping rules documented on this page.",
+  "additionalLinks": []
+ },
+ {
+  "url": "https://umovme.octacx.com/a/importação-e-exportação-de-arquivos-exportlayout-modelo-de-exportação/",
+  "title": "Importação e Exportação de Arquivos (ExportLayout (Modelo de exportação))",
+  "summary": "Documents the ExportLayout (export model) entity of the uMov.me REST API, used to query export layout models configured for a client. It exposes two read-only XML endpoints: a list endpoint (filterable by description) and a get-by-id endpoint. Authentication is done via an API key embedded in the URL path. Responses are XML and include layout metadata plus a nested array of field definitions.",
+  "entity": "ExportLayout",
+  "endpoints": [
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/exportLayout.xml",
+    "description": "Retrieve list of export layout models",
+    "params": "description (optional filter)"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/exportLayout/{id}.xml",
+    "description": "Retrieve a specific export layout model by ID",
+    "params": "id (required, path)"
+   }
+  ],
+  "fields": "id: integer (unique identifier); description: string (model name); active: boolean; type: integer (model type); status: integer; updatable: boolean; updated: boolean; hasHeader: boolean; hasFooter: boolean; multipleListingExportingType: integer; fields: array of field objects (id: integer, order: integer, type, readOnly: boolean, fileFieldTitle: string, active: boolean, dataFieldType)",
+  "auth": "API key passed as a URL path segment: /CenterWeb/api/{apiKey}/...",
+  "baseUrl": "/CenterWeb/api/",
+  "dataFormat": "XML",
+  "pagination": "Not mentioned on this page",
+  "notes": "Read-only (GET only) entity; no error codes, pagination, or limits documented on this page.",
+  "additionalLinks": []
+ },
+ {
+  "url": "https://umovme.octacx.com/a/importação-e-exportação-de-arquivos-importfiles-agendamento-de-importação-de-arquivos/",
+  "title": "Importação e Exportação de Arquivos - ImportFiles - Agendamento de importação de arquivos",
+  "summary": "Documents the ImportFiles resource of the uMov.me CenterWeb API, used to schedule files already placed on the customer's FTP for import processing. A POST to importfiles.xml with an XML body listing file entries queues those files; multiple files sent together form a single import package processed sequentially. Authentication is via an API key embedded in the URL path. Data format is XML.",
+  "entity": "ImportFiles",
+  "endpoints": [
+   {
+    "method": "POST",
+    "path": "/CenterWeb/api/{apiKey}/importfiles.xml",
+    "description": "Schedules FTP files for system import processing; XML body <import><files><entry name=\"FILENAME\"/></files></import>",
+    "params": "apiKey (path, required); body: files.entry[@name] = filename on FTP (required, repeatable)"
+   }
+  ],
+  "fields": "import.files.entry (repeatable element) — attribute name: string, required, the FTP filename to schedule for import",
+  "auth": "API key passed as a path segment in the URL: /CenterWeb/api/{apiKey}/importfiles.xml",
+  "baseUrl": "/CenterWeb/api/{apiKey}/ (host not explicitly stated on page)",
+  "dataFormat": "XML",
+  "pagination": "Not mentioned",
+  "notes": "Files must already exist on the FTP; sending multiple entry elements creates a single import package whose files are processed sequentially. No error codes, rate limits, or response format documented on this page.",
+  "additionalLinks": []
+ },
+ {
+  "url": "https://umovme.octacx.com/a/importação-e-exportação-de-arquivos-importlayout-modelo-de-importação/",
+  "title": "Importação e Exportação de Arquivos - importLayout (Modelo de Importação)",
+  "summary": "Documents the importLayout resource of the uMov.me REST API, which represents import model (layout) configurations used for file import/export. It is a read-only resource: four GET endpoints allow listing all import layouts, searching by description, fetching a specific layout by ID, and listing layouts by entity type (e.g. \"item\"). Responses are XML wrapped in a <result> element containing <resourceName>, <size>, and an <entries> list of <entry id link> elements. Each layout has id, description, active, filePrefix and a nested collection of field definitions (id, name, active, mandatory) that indicate the columns of the import template. Authentication is via an API key embedded in the URL path.",
+  "entity": "importLayout",
+  "endpoints": [
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/importLayout.xml",
+    "description": "List all import layout models"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/importLayout.xml",
+    "description": "Search import layouts by description",
+    "params": "description (query, string)"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/importLayout/{id}.xml",
+    "description": "Retrieve a specific import layout by ID"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/importLayout/entity/{entity}.xml",
+    "description": "List import layouts filtered by entity type (e.g. item)"
+   }
+  ],
+  "fields": "importLayout: id (integer, required), description (string, required), active (boolean, optional), filePrefix (string, optional), fields (array of field objects, optional). Nested field object: id (integer, required), name (string, required), active (boolean, optional), mandatory (boolean, optional — indicates required column in the import template).",
+  "auth": "API key embedded in the URL path: /CenterWeb/api/{apiKey}/... No headers or tokens mentioned.",
+  "baseUrl": "Host not shown on page; endpoint root is /CenterWeb/api/{apiKey}/ (uMov.me CenterWeb API)",
+  "dataFormat": "XML only (.xml suffix on resources); list responses wrapped in <result> with <resourceName>, <size>, and <entries> of <entry id=\"..\" link=\"/importLayout/{id}.xml\"/>",
+  "pagination": "Not documented on this page; list responses include a <size> element and entry links.",
+  "notes": "Read-only resource (GET only, no create/update/delete documented). \"mandatory\" flag on nested fields marks required columns in import templates. Entity filter accepts resource type names such as \"item\". No error codes, rate limits, or JSON support mentioned.",
+  "additionalLinks": []
+ },
+ {
+  "url": "https://umovme.octacx.com/a/itens-e-relacionados-aditionalinfoitem-itens-em-destaque/",
+  "title": "Itens e relacionados (aditionalInfoItem (Itens em Destaque))",
+  "summary": "Documents the aditionalInfoItem (Featured Items / \"Itens em Destaque\") resource of the uMov.me field-service REST API. Covers creating, updating, listing and fetching featured-item records that link an item to a section and a service local with a featured description text. All operations use XML payloads over CenterWeb API paths that embed an API key in the URL. List responses are wrapped in a structure with resourceName, size, and entries containing ID links. No pagination, error codes, or escaping rules are documented on this page.",
+  "entity": "aditionalInfoItem",
+  "endpoints": [
+   {
+    "method": "POST",
+    "path": "/CenterWeb/api/{apiKey}/aditionalInfoItem.xml",
+    "description": "Create a featured item",
+    "params": "XML body with featuredInfo, active, item, section, serviceLocal"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/aditionalInfoItem.xml",
+    "description": "List all featured items (wrapped response with resourceName, size, entries of ID links)"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/aditionalInfoItem/{id}.xml",
+    "description": "Get a specific featured item by ID"
+   },
+   {
+    "method": "POST",
+    "path": "/CenterWeb/api/{apiKey}/aditionalInfoItem/{id}.xml",
+    "description": "Update a specific featured item",
+    "params": "XML body with updated fields"
+   }
+  ],
+  "fields": "id: integer (system-generated); clientId: integer; featuredInfo: string (required); active: boolean (required); item: object (required) { alternativeIdentifier: string (required), description: string, insertModule: string, updatedModule: string }; section: object (required) { alternativeIdentifier: string (required), plus configuration fields such as order, mandatory, useItem }; serviceLocal: object (required) { alternativeIdentifier: string (required), street, streetNumber, city, state, zipCode, phoneStd, phoneNumber, email, geoCoordinate, geoCoordinatePrecision }",
+  "auth": "API key embedded in the URL path: /CenterWeb/api/{apiKey}/...",
+  "baseUrl": "Not explicitly stated on the page; endpoints are relative paths under /CenterWeb/api/{apiKey}/",
+  "dataFormat": "XML only (.xml suffix on all endpoints; no JSON alternative mentioned)",
+  "pagination": "Not documented on this page; list response includes size and entries with ID links",
+  "notes": "Entity name is spelled \"aditionalInfoItem\" (with the API's own misspelling of \"additional\"). No error codes, pagination parameters, or character-escaping guidance on this page. List GET returns only entry ID links, requiring per-ID GETs for full records.",
+  "additionalLinks": []
+ },
+ {
+  "url": "https://umovme.octacx.com/a/itens-e-relacionados-group-grupo/",
+  "title": "Itens e Relacionados - Group (Grupo)",
+  "entity": "Group",
+  "summary": "Documents the Group (Grupo) entity of the uMov.me CenterWeb REST API, part of the \"Items and related\" resources. Covers listing groups with optional filters, fetching a group by internal ID or alternative identifier, and creating/updating groups via POST. Requests and responses use XML, with the API key embedded in the URL path. The entity is simple: id, description, active, and alternativeIdentifier; for updates only the alternativeIdentifier is mandatory.",
+  "endpoints": [
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/group.xml",
+    "description": "List groups",
+    "params": "description, active (optional filters)"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/group/{id}.xml",
+    "description": "Fetch a specific group by internal ID",
+    "params": "id (path)"
+   },
+   {
+    "method": "POST",
+    "path": "/CenterWeb/api/{apiKey}/group.xml",
+    "description": "Create a new group",
+    "params": "XML body with group fields"
+   },
+   {
+    "method": "POST",
+    "path": "/CenterWeb/api/{apiKey}/group/{id}.xml",
+    "description": "Update an existing group",
+    "params": "id (path), XML body"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/group/alternativeIdentifier{alternativeIdentifier}.xml",
+    "description": "Fetch group by alternative identifier",
+    "params": "alternativeIdentifier (path)"
+   }
+  ],
+  "fields": "id: Integer, optional (system-generated); description: String, required; active: Boolean, optional; alternativeIdentifier: String, required for updates (external-system ID)",
+  "auth": "API key embedded in URL path segment: /CenterWeb/api/{apiKey}/...",
+  "baseUrl": "",
+  "dataFormat": "XML",
+  "pagination": "Not mentioned on this page",
+  "notes": "For record updates, only the alternativeIdentifier is mandatory (\"Para atualização de cadastro, somente o identificador alternativo é obrigatório\"). List responses return minimal data with links to full records. No error codes or rate limits documented on this page.",
+  "additionalLinks": []
+ },
+ {
+  "url": "https://umovme.octacx.com/a/itens-e-relacionados-item-item/",
+  "title": "Itens e Relacionados - Item (uMov.me API)",
+  "summary": "Documents the Item entity of the uMov.me field-service REST API, representing the \"What?\" component of workflow management. Covers listing/filtering items, retrieving by internal ID or alternativeIdentifier, creating and updating items, and an atomic batch endpoint. All requests use XML over paths under /CenterWeb/api/{apiKey}/. Items belong to a subGroup, may have an itemCategory, custom fields (including pipe-separated multivalued lists), and an image imported via URL.",
+  "entity": "Item",
+  "baseUrl": "/CenterWeb/api/{apiKey}/",
+  "auth": "API key embedded as a URL path segment: /CenterWeb/api/{apiKey}/...",
+  "dataFormat": "XML",
+  "endpoints": [
+   {
+    "method": "GET",
+    "path": "/item.xml",
+    "description": "List all items with optional filters",
+    "params": "description, active, initialInsertDateTime (YYYY-MM-DD HH:MM:SS), finalInsertDateTime"
+   },
+   {
+    "method": "GET",
+    "path": "/item/{id}.xml",
+    "description": "Retrieve item by internal ID"
+   },
+   {
+    "method": "GET",
+    "path": "/item/alternativeIdentifier/{alternativeIdentifier}.xml",
+    "description": "Retrieve item by alternative identifier"
+   },
+   {
+    "method": "POST",
+    "path": "/item.xml",
+    "description": "Create a new item"
+   },
+   {
+    "method": "POST",
+    "path": "/item/{id}.xml",
+    "description": "Update item by internal ID"
+   },
+   {
+    "method": "POST",
+    "path": "/item/alternativeIdentifier/{alternativeIdentifier}.xml",
+    "description": "Update item by alternative identifier"
+   },
+   {
+    "method": "POST",
+    "path": "/batch/items.xml",
+    "description": "Batch create/update items; atomic — any error aborts the whole batch"
+   }
+  ],
+  "fields": "id: integer, read-only internal ID; description: string, required; alternativeIdentifier: string, required for updates; active: boolean, optional (default false); subGroup: object reference (id or alternativeIdentifier), required; itemCategory: object reference (id or alternativeIdentifier), optional; customFields: key-value object, optional (multivalued list values pipe-separated, list selection via alternativeIdentifier tag inside the field element); image: object with imageUrlImport (remote image URL), optional",
+  "pagination": "Not documented on this page (list response returns <result> with resourceName, size, and <entry id link> elements)",
+  "notes": "Batch endpoint is atomic: any error aborts the entire operation and nothing is inserted; batch response returns internal id and alternativeIdentifier per record. Multivalued list custom fields separate values with '|'. No error codes, rate limits, or character-escaping rules documented on this page.",
+  "additionalLinks": []
+ },
+ {
+  "url": "https://umovme.octacx.com/a/itens-e-relacionados-itemcategory-categoria-de-item/",
+  "title": "Itens e relacionados - itemCategory (Categoria de Item)",
+  "summary": "Documents the itemCategory entity of the uMov.me CenterWeb REST API, representing item categories in the \"O Quê?\" (What?) domain. Supports listing with optional filters (description, active), fetching by ID, searching by alternativeIdentifier, and creating/updating via POST with XML payloads. Authentication is via an API key embedded in the URL path (/CenterWeb/api/{apiKey}/). Data format is XML; list responses return a resource wrapper with size and entries containing id and link attributes.",
+  "entity": "ItemCategory",
+  "endpoints": [
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/itemCategory.xml",
+    "description": "List item categories",
+    "params": "description, active (optional filters)"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/itemCategory/{id}.xml",
+    "description": "Get item category by ID"
+   },
+   {
+    "method": "POST",
+    "path": "/CenterWeb/api/{apiKey}/itemCategory.xml",
+    "description": "Create item category",
+    "params": "XML body"
+   },
+   {
+    "method": "POST",
+    "path": "/CenterWeb/api/{apiKey}/itemCategory/{id}.xml",
+    "description": "Update item category",
+    "params": "XML body"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/itemCategory/alternativeIdentifier/{alternativeIdentifier}.xml",
+    "description": "Get item category by alternative identifier"
+   }
+  ],
+  "fields": "id: Integer (auto-generated system identifier); description: String (required on create) - category name; active: Boolean (optional) - status flag; alternativeIdentifier: String (optional; required for updates) - external system reference ID",
+  "auth": "API key embedded in URL path: /CenterWeb/api/{apiKey}/... (no header-based auth mentioned)",
+  "baseUrl": "/CenterWeb/api/{apiKey}/",
+  "dataFormat": "XML",
+  "pagination": "Not mentioned; list responses include <size> and <entries> elements with id and link per entry.",
+  "notes": "Required fields differ by operation: create requires description; docs state only alternativeIdentifier is mandatory for updates. The alternativeIdentifier search endpoint appears in the docs with a typo (\"alternativedentifier\") in the path. No error codes, rate limits, or JSON support mentioned.",
+  "additionalLinks": []
+ },
+ {
+  "url": "https://umovme.octacx.com/a/itens-e-relacionados-sectionitem-item-de-seção/",
+  "title": "Itens e relacionados - SectionItem (Item de Seção)",
+  "summary": "Documents the SectionItem (Item de Seção) entity of the uMov.me REST API, which links an Item to a Section (the \"What?\" component in uMov.me workflows). Covers listing, retrieving, creating and updating section items via XML endpoints under /CenterWeb/api/{apiKey}/sectionItem. Fields include id, active, order, mandatory, and nested section/item references identified by id or alternativeIdentifier. Authentication is via API key embedded in the URL path; data format is XML. Query-string filtering (e.g. ?active=true) is supported; pagination, error codes and rate limits are not documented on this page.",
+  "entity": "SectionItem",
+  "baseUrl": "http://center.umov.me/CenterWeb/api/{apiKey}",
+  "auth": "API key passed in the URL path: /CenterWeb/api/{apiKey}/...",
+  "dataFormat": "XML (JSON not mentioned)",
+  "endpoints": [
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/sectionItem.xml",
+    "description": "List section items; supports query-string filters like ?active=true",
+    "params": "active, section, item filters via query string"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/sectionItem/{id}.xml",
+    "description": "Retrieve a specific section item by id"
+   },
+   {
+    "method": "POST",
+    "path": "/CenterWeb/api/{apiKey}/sectionItem.xml",
+    "description": "Create a section item; requires section and item references",
+    "params": "active, order, mandatory, section(id|alternativeIdentifier), item(id|alternativeIdentifier)"
+   },
+   {
+    "method": "POST",
+    "path": "/CenterWeb/api/{apiKey}/sectionItem/{id}.xml",
+    "description": "Update a specific section item; only alternativeIdentifier is mandatory for updates",
+    "params": "active, order, mandatory, section, item"
+   }
+  ],
+  "fields": "id: integer, optional (system identifier); active: boolean, optional; order: integer, optional (display order); mandatory: boolean, optional; section: object, required for creation — with section.id (integer) or section.alternativeIdentifier (string), one required; item: object, required for creation — with item.id (integer) or item.alternativeIdentifier (string), one required",
+  "pagination": "Not documented on this page. List responses return &lt;result&gt; with resourceName, size, and entries of &lt;entry id link/&gt;.",
+  "notes": "List response format: &lt;result&gt;&lt;resourceName&gt;sectionItem&lt;/resourceName&gt;&lt;size&gt;N&lt;/size&gt;&lt;entries&gt;&lt;entry id link/&gt;&lt;/entries&gt;&lt;/result&gt;. Alternative identifiers can be used instead of internal IDs for external-system integration; internal IDs shown in examples are illustrative only. No error codes, escaping rules or rate limits documented. Item management UI: http://center.umov.me/CenterWeb/item",
+  "additionalLinks": []
+ },
+ {
+  "url": "https://umovme.octacx.com/a/itens-e-relacionados-subgroup-subgrupo/",
+  "title": "Itens e Relacionados - SubGroup (Subgrupo)",
+  "summary": "Documents the SubGroup (Subgrupo) entity of the uMov.me REST API, part of the Items (\"What?\") domain. Covers XML-based CRUD-style endpoints under /CenterWeb/api/{apiKey}/subGroup for listing, fetching by internal id or alternativeIdentifier, creating and updating subgroups, plus listing items belonging to a subgroup. Authentication is done via an API key embedded in the URL path. Fields are minimal: description, alternativeIdentifier, active flag, and a parent group reference by id or alternativeIdentifier.",
+  "entity": "SubGroup",
+  "baseUrl": "/CenterWeb/api/{apiKey}/ (host not shown; typically https://api.umov.me)",
+  "auth": "API key passed as a path segment in the URL: /CenterWeb/api/{apiKey}/... (URL-based authentication, no headers documented)",
+  "dataFormat": "XML (endpoints use .xml suffix; filters passed as standard query parameters)",
+  "pagination": "Not documented on this page. List responses return <resourceName>, <size> and <entries> containing id + link per entry.",
+  "endpoints": [
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/subGroup.xml",
+    "description": "List all subgroups (supports query filters, e.g. ?description=...&active=true)",
+    "params": "description, active, alternativeIdentifier"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/subGroup/{id}.xml",
+    "description": "Get a specific subgroup by internal id"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/subGroup/alternativeIdentifier/{alternativeIdentifier}.xml",
+    "description": "Get a subgroup by alternative identifier"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/item.xml?subGroup={id}",
+    "description": "List items belonging to a given subgroup",
+    "params": "subGroup"
+   },
+   {
+    "method": "POST",
+    "path": "/CenterWeb/api/{apiKey}/subGroup.xml",
+    "description": "Create a new subgroup (XML body)"
+   },
+   {
+    "method": "POST",
+    "path": "/CenterWeb/api/{apiKey}/subGroup/{id}.xml",
+    "description": "Update an existing subgroup (XML body)"
+   }
+  ],
+  "fields": "id: Integer (auto-generated internal id); description: String (required) - subgroup name; alternativeIdentifier: String (optional) - external system identifier; active: Boolean (optional, default true); group: Object reference (required) - parent group, referenced by id or alternativeIdentifier",
+  "notes": "For updates, only the alternativeIdentifier is mandatory. The parent group can be linked via internal id or alternativeIdentifier. List responses wrap entries with id + resource link rather than full entity data. No error codes, rate limits or pagination documented on this page.",
+  "additionalLinks": []
+ },
+ {
+  "url": "https://umovme.octacx.com/a/itinerary-activity-atividades-das-rotas/",
+  "title": "Itinerary Activity (Atividades das Rotas)",
+  "summary": "Documents the ItineraryActivity resource of the uMov.me CenterWeb REST API, which links activities to itineraries (routes). It covers batch insertion/update of itinerary activities (max 100 per request, atomic transaction), listing with query filters, fetching by internal ID, and deleting either by internal ID or by the alternative identifiers of the itinerary and activity. All examples use XML payloads and endpoints under /CenterWeb/api/{apiKey}/, with authentication done via the API key embedded in the URL path.",
+  "entity": "ItineraryActivity",
+  "endpoints": [
+   {
+    "method": "POST",
+    "path": "/CenterWeb/api/{apiKey}/batch/itineraryActivities.xml",
+    "description": "Batch create/update itinerary activities; max 100 <itineraryActivity> elements per request; atomic (any error aborts entire operation)"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/itineraryActivity.xml",
+    "description": "List itinerary activities",
+    "params": "activity, itinerary, itinerary.alternativeIdentifier"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/itineraryActivity/{id}.xml",
+    "description": "Get a specific itinerary activity by internal ID"
+   },
+   {
+    "method": "DELETE",
+    "path": "/CenterWeb/api/{apiKey}/itineraryActivity/{id}.xml",
+    "description": "Delete itinerary activity by internal ID"
+   },
+   {
+    "method": "DELETE",
+    "path": "/CenterWeb/api/{apiKey}/itineraryActivity/itinerary/{itineraryAltId}/activity/{activityAltId}.xml",
+    "description": "Delete itinerary activity by alternative identifiers of itinerary and activity"
+   }
+  ],
+  "fields": "itineraryActivity: id (integer, required); itinerary (object, required); activity (object, required). itinerary sub-elements: id, description, origin, agentRelation, displayOrder, alternativeIdentifier, active, validateTasksOnField, exclusive, itineraryDefault. activity sub-elements: id, description, alternativeIdentifier, displayOrder, active, comunicationType (sic), executionType, loopExecution, showsSessionWebForm, confirmClose, acceleratedExecution, confirmWithoutGPS, GPSIsMandatory, captureGPS.",
+  "auth": "API key embedded in the URL path: /CenterWeb/api/{apiKey}/... No headers or tokens mentioned.",
+  "baseUrl": "/CenterWeb/api/{apiKey}/ (no explicit host shown on the page; uMov.me production host is typically api.umov.me)",
+  "dataFormat": "XML (all endpoints use .xml suffix)",
+  "pagination": "Not mentioned on this page.",
+  "notes": "Batch endpoint limited to 100 itineraryActivity elements per request; batch is transactional/atomic — if any error occurs, the whole operation is aborted and nothing is inserted. Field name \"comunicationType\" is misspelled in the API (single m). No explicit HTTP status codes, character escaping, or rate limits documented on this page.",
+  "additionalLinks": []
+ },
+ {
+  "url": "https://umovme.octacx.com/a/locais-e-relacionados-servicelocal-local-de-atendimento/",
+  "title": "Locais e relacionados – ServiceLocal (Local de Atendimento)",
+  "summary": "Documents the ServiceLocal (Local de Atendimento / service location) entity of the uMov.me field-service REST API. Covers listing with query filters, fetching by internal id or alternativeIdentifier, creating/updating via POST (single and batch endpoints), and the full XML field schema including address, contact, geoCoordinate, accountable agent, itemsRelationship and customFields. Authentication is an API key embedded in the URL path; payloads are XML wrapped in a \"data\" form parameter for POSTs. Geo-coordinates are auto-derived from the address when not supplied.",
+  "entity": "ServiceLocal (Local de Atendimento)",
+  "baseUrl": "https://api.umov.me/CenterWeb/api/{apiKey}",
+  "auth": "API key as URL path segment: /CenterWeb/api/{apiKey}/... No headers or tokens documented.",
+  "dataFormat": "XML (.xml extension in paths); POST body sent as form parameter \"data\" containing the XML document. JSON not explicitly documented.",
+  "endpoints": [
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/serviceLocal.xml",
+    "description": "List service locations with optional filters",
+    "params": "country, active, initialInsertDateTime, finalInsertDateTime (YYYY-MM-DD HH:MM:SS)"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/serviceLocal/{id}.xml",
+    "description": "Get service location by internal id"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/serviceLocal/alternativeIdentifier/{alternativeIdentifier}.xml",
+    "description": "Get service location by alternative identifier"
+   },
+   {
+    "method": "POST",
+    "path": "/CenterWeb/api/{apiKey}/serviceLocal.xml",
+    "description": "Create a new service location",
+    "params": "data=<serviceLocal>...</serviceLocal>"
+   },
+   {
+    "method": "POST",
+    "path": "/CenterWeb/api/{apiKey}/serviceLocal/{id}.xml",
+    "description": "Update service location by internal id",
+    "params": "data=XML payload"
+   },
+   {
+    "method": "POST",
+    "path": "/CenterWeb/api/{apiKey}/serviceLocal/alternativeIdentifier/{alternativeIdentifier}.xml",
+    "description": "Update service location by alternative identifier",
+    "params": "data=XML payload"
+   },
+   {
+    "method": "POST",
+    "path": "/CenterWeb/api/{apiKey}/batch/serviceLocals.xml",
+    "description": "Batch create/update multiple locations wrapped in <serviceLocals> container",
+    "params": "data=<serviceLocals><serviceLocal>...</serviceLocal>...</serviceLocals>"
+   }
+  ],
+  "fields": "id: Integer, read-only (internal id); description: String, required (location name); alternativeIdentifier: String, required for updates only (external id); active: Boolean, optional; corporateName: String, optional; country: String, optional; state: String, optional; city: String, optional; cityNeighborhood: String, optional; street: String, optional; streetType: String, optional; streetComplement: String, optional; zipCode: String, optional; phoneIdd: String, optional; cellphoneIdd: String, optional; phoneNumber: String, optional; cellphoneNumber: String, optional; email: String, optional; geoCoordinate: String \"lat,long\", optional (auto-populated from address if omitted); observation: String, optional; image: Object with imageUrlImport URL, optional; accountable: Object (nested agent id or alternativeIdentifier), optional; itemsRelationship: Object (nested alternativeIdentifier), optional; customFields: Object, optional (multivalued supported); origin: Integer, read-only; insertDateTime: DateTime YYYY-MM-DD HH:MM:SS, read-only; agentInsert: Object, read-only; lastUpdateDateTime: DateTime, read-only; agentLastUpdate: Object, read-only",
+  "pagination": "Not explicitly documented; list response is <result> with <resourceName>, <size> (record count) and <entries> of <entry id link> stubs that must be fetched individually.",
+  "notes": "If geoCoordinate is not provided, uMov.me tries to geocode from the registered address; if the address is invalid the field stays empty. alternativeIdentifier is mandatory only on updates, not creation. POST payloads must be wrapped in the form field \"data\". Multi-value custom fields use pipe-delimited alternativeIdentifiers (e.g. 0|1); custom fields reference the separate Custom Field / Custom Field Value article. No error codes or rate limits documented on this page.",
+  "additionalLinks": []
+ },
+ {
+  "url": "https://umovme.octacx.com/a/locais-e-relacionados-servicelocaltype-tipo-de-local-de-atendimento/",
+  "title": "Locais e Relacionados - serviceLocalType (Tipo de Local de Atendimento)",
+  "summary": "Documents the serviceLocalType entity of the uMov.me REST API, which represents the type of a service location (the \"Where?\" component). It supports listing, fetching by internal ID or alternativeIdentifier, and creating/updating via POST. Requests use an API key embedded in the URL path and data is exchanged as XML. The entity has a small field set: id (read-only), description (required), alternativeIdentifier, and active. List queries can be filtered via query-string parameters such as description and active.",
+  "entity": "serviceLocalType",
+  "endpoints": [
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/serviceLocalType.xml",
+    "description": "List all service location types (summary: id + link)",
+    "params": "description, active (query filters)"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/serviceLocalType/{id}.xml",
+    "description": "Get a service location type by internal ID"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/serviceLocalType/alternativeIdentifier/{alternativeId}.xml",
+    "description": "Get a service location type by alternative identifier"
+   },
+   {
+    "method": "POST",
+    "path": "/CenterWeb/api/{apiKey}/serviceLocalType.xml",
+    "description": "Create a new service location type"
+   },
+   {
+    "method": "POST",
+    "path": "/CenterWeb/api/{apiKey}/serviceLocalType/{id}.xml",
+    "description": "Update a service location type by internal ID"
+   },
+   {
+    "method": "POST",
+    "path": "/CenterWeb/api/{apiKey}/serviceLocalType/alternativeIdentifier/{alternativeId}.xml",
+    "description": "Update a service location type by alternative identifier"
+   }
+  ],
+  "fields": "id: Integer, read-only (system-generated); description: String, required; alternativeIdentifier: String, optional (external-system ID, sole key needed for updates); active: Boolean, optional (status flag)",
+  "auth": "API key passed as a URL path segment: /CenterWeb/api/{apiKey}/...",
+  "baseUrl": "",
+  "dataFormat": "XML (.xml resource suffix)",
+  "pagination": "Not mentioned on this page",
+  "notes": "Updates require only the alternativeIdentifier (or ID); other fields optional. List responses return summary data (id + link) without full details. Internal ID and alternativeIdentifier are interchangeable for lookups. Query-string filtering supported (e.g. ?description=xyz&active=true).",
+  "additionalLinks": []
+ },
+ {
+  "url": "https://umovme.octacx.com/a/local3dimension-grupo-de-local-de-atendimento/",
+  "title": "local3Dimension - Grupo de Local de Atendimento",
+  "summary": "Documents the uMov.me REST API entity local3Dimension, the third grouping dimension for service locations (grupo de local de atendimento). Supports listing with query filters, retrieval by internal id or alternativeIdentifier, and creation/update via POST to the same paths. Requests and responses use XML, with the account API key embedded in the URL path (/CenterWeb/api/{apiKey}/). Entity is simple: id, description, alternativeIdentifier, active.",
+  "entity": "Local3Dimension (Grupo de Local de Atendimento)",
+  "baseUrl": "/CenterWeb/api/{apiKey}/ (e.g. https://api.umov.me/CenterWeb/api/{apiKey}/)",
+  "auth": "API key passed as a path segment in the URL: /CenterWeb/api/{apiKey}/local3Dimension.xml",
+  "dataFormat": "XML (.xml suffix on all endpoints)",
+  "endpoints": [
+   {
+    "method": "GET",
+    "path": "/local3Dimension.xml",
+    "description": "List service location groups; supports search filters",
+    "params": "description, active"
+   },
+   {
+    "method": "GET",
+    "path": "/local3Dimension/{id}.xml",
+    "description": "Get a group by internal id"
+   },
+   {
+    "method": "GET",
+    "path": "/local3Dimension/alternativeIdentifier/{alternativeIdentifier}.xml",
+    "description": "Get a group by alternative identifier"
+   },
+   {
+    "method": "POST",
+    "path": "/local3Dimension.xml",
+    "description": "Create a new group (XML body; description required)"
+   },
+   {
+    "method": "POST",
+    "path": "/local3Dimension/{id}.xml",
+    "description": "Update a group by internal id (XML body)"
+   },
+   {
+    "method": "POST",
+    "path": "/local3Dimension/alternativeIdentifier/{alternativeIdentifier}.xml",
+    "description": "Update a group by alternative identifier (XML body)"
+   }
+  ],
+  "fields": "id: Integer, auto-generated system identifier; description: String, required on creation; alternativeIdentifier: String, optional (used as external key; only field required to reference the record on updates by alternativeIdentifier); active: Boolean, optional status flag",
+  "pagination": "List response returns <resourceName>, <size> and <entries> with entry id and link attributes; no explicit page parameters documented on this page",
+  "notes": "Both id and alternativeIdentifier are interchangeable for lookups and updates. For updates only the identifying field is mandatory; other fields are optional. Creation requires at minimum description. No DELETE endpoint documented. No JSON support mentioned.",
+  "additionalLinks": []
+ },
+ {
+  "url": "https://umovme.octacx.com/a/logical-expressions-fórmulas-de-validação/",
+  "title": "Logical Expressions (Fórmulas de Validação)",
+  "summary": "Documents the logicalExpression entity (validation formulas) of the uMov.me REST API. Supports read-only access via GET: listing all logical expressions, filtered search with query parameters, and fetching a single expression by id. The API uses XML payloads and an API key embedded in the URL path (/CenterWeb/api/{apiKey}/...). Search results return a summary list with ids/links; full details require fetching the individual record.",
+  "entity": "logicalExpression",
+  "endpoints": [
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/logicalExpression.xml",
+    "description": "List all logical expressions (summary list with ids/links)"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/logicalExpression.xml?{params}",
+    "description": "Search logical expressions with query-string filters",
+    "params": "standard HTTP query parameters"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/logicalExpression/{id}.xml",
+    "description": "Retrieve a specific logical expression by id"
+   }
+  ],
+  "fields": "id: integer, required; objectCode: integer, required; objectType: integer, optional; moment: integer, optional; expressionForPrint: string (formula expression), optional; falseResultMode: integer (error handling mode), optional; validationMessage: string, optional; emitBeep: boolean, optional; executeExpressionVisibleField: boolean, optional; ordination: integer (sort order), optional; documentation: string, optional",
+  "auth": "API key in URL path: /CenterWeb/api/{apiKey}/{resource}",
+  "baseUrl": "/CenterWeb/api/{apiKey}/",
+  "dataFormat": "XML",
+  "pagination": "Not mentioned; search returns a summary list with ids/links, details fetched per record",
+  "notes": "For registration updates, only the alternative identifier is mandatory. Search returns summary list; individual GET needed for full details. No JSON, error codes, or rate limits mentioned on this page.",
+  "additionalLinks": []
+ },
+ {
+  "url": "https://umovme.octacx.com/a/math-expressions-fórmulas-de-valor/",
+  "title": "Math Expressions (Fórmulas de Valor)",
+  "entity": "MathExpression (mathExpression)",
+  "summary": "Documents the mathExpression (Fórmulas de Valor / value formulas) resource of the uMov.me CenterWeb REST API. It is read-oriented: endpoints allow listing all math expressions, filtering them by query parameters (e.g. sectionField.type, sectionField.active, objectCode), and fetching a single expression by numeric id. Requests use an API key embedded in the URL path and responses are XML (list responses return a result count plus entries of id/link pairs). Fields include id, objectType, objectCode, moment, expressionForPrint, convertEmptyValuesToZero, ordination, documentation and a nested sectionField object. The page notes that for record updates only the alternative identifier is mandatory.",
+  "baseUrl": "/CenterWeb/api/{$apiKey}/ (host not shown on page)",
+  "auth": "API key embedded in the URL path: /CenterWeb/api/{$apiKey}/mathExpression.xml",
+  "dataFormat": "XML (.xml suffix in all examples; JSON possibly supported via extension swap but not shown)",
+  "endpoints": [
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/mathExpression.xml",
+    "description": "List/search all value formulas; list response returns result count and entries with id + link"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/mathExpression.xml?{filters}",
+    "description": "Search with filters",
+    "params": "sectionField.type (e.g. L), sectionField.active (boolean), objectCode"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/mathExpression/{id}.xml",
+    "description": "Retrieve a specific value formula by numeric id (e.g. 1234768)"
+   }
+  ],
+  "fields": "id: integer, required (unique identifier); objectType: integer, optional; objectCode: integer, optional; moment: integer, optional; expressionForPrint: string, optional (formula expression for printing); convertEmptyValuesToZero: boolean, optional; ordination: integer, optional (ordering); documentation: string, optional; sectionField: nested object, optional (field configuration; filterable via sectionField.type and sectionField.active)",
+  "pagination": "Not documented on this page; list responses include a result count and entry list of id/link pairs.",
+  "notes": "For updating records (\"atualização de cadastro\"), only the alternative identifier is mandatory. No error codes, rate limits, or character-escaping rules are documented on this page. Filtering uses dotted nested-field query params (e.g. sectionField.type=L).",
+  "additionalLinks": []
+ },
+ {
+  "url": "https://umovme.octacx.com/a/mensagens-e-notificações-mensagens/",
+  "title": "Mensagens e Notificações - Mensagens (uMov.me API)",
+  "summary": "Documents the Message entity of the uMov.me API, used to send text messages (up to 500 characters) from the central system to field users' mobile devices. A single POST endpoint creates a message in XML format, addressed via recipient alternativeIdentifier(s), with support for multiple recipients. An optional sendNotification tag triggers an immediate push notification to the device; otherwise the message is delivered on the device's next synchronization (interval varies by environment). A hideAnswer flag controls answer visibility. Authentication is via an API key embedded in the URL path.",
+  "entity": "Message",
+  "endpoints": [
+   {
+    "method": "POST",
+    "path": "/CenterWeb/api/{$apiKey}/message.xml",
+    "description": "Create/send a message to one or more mobile users",
+    "params": "sender.alternativeIdentifier, recipients.recipient.alternativeIdentifier (repeatable), description, sendNotification, hideAnswer"
+   }
+  ],
+  "fields": "sender.alternativeIdentifier: string, optional — sender identifier; recipients.recipient.alternativeIdentifier: string, required — recipient user identifier, element repeatable for multiple recipients; description: string, required — message body, max 500 characters; sendNotification: boolean, optional — send immediate push notification to device; hideAnswer: boolean, optional — hides/controls answer visibility",
+  "auth": "API key embedded in the URL path segment: /CenterWeb/api/{$apiKey}/...",
+  "baseUrl": "/CenterWeb/api/ (host not explicitly stated on the page; typically the uMov.me API server)",
+  "dataFormat": "XML (request body is an XML <message> document; endpoint suffix .xml)",
+  "pagination": "Not mentioned (write-only endpoint)",
+  "notes": "Message body limited to 500 characters. Without sendNotification, delivery happens only on the device's next synchronization; sync intervals vary per environment. Example XML shows hideAnswer=true. No error codes documented on this page.",
+  "additionalLinks": []
+ },
+ {
+  "url": "https://umovme.octacx.com/a/mensagens-e-notificações-schedulenotification-notificação-push/",
+  "title": "Mensagens e notificações - scheduleNotification (Notificação Push)",
+  "summary": "Documents the uMov.me scheduleNotification resource for sending push notifications (unidirectional messages) to field agents. A single POST of an XML payload to /CenterWeb/api/{apiKey}/scheduleNotification.xml sends a message to one or more agents identified by alternativeIdentifier. Messages are not persisted on the mobile device (deleted after viewing) and delivery may be delayed. Authentication is via the API key embedded in the URL path.",
+  "entity": "ScheduleNotification",
+  "baseUrl": "https://api.umov.me/CenterWeb/api/{apiKey}",
+  "auth": "API key (environment token) embedded in the URL path: /CenterWeb/api/{apiKey}/scheduleNotification.xml",
+  "dataFormat": "XML (request and response)",
+  "endpoints": [
+   {
+    "method": "POST",
+    "path": "/CenterWeb/api/{apiKey}/scheduleNotification.xml",
+    "description": "Send a push notification message to one or more agents",
+    "params": "message (notification text), agents > agent > alternativeIdentifier (recipient agent identifier, repeatable for multiple recipients)"
+   }
+  ],
+  "fields": "message: string, required (notification text shown to agent); agents: container, required (list of recipients); agents.agent: object, required (one per recipient, repeatable); agents.agent.alternativeIdentifier: string, required (agent's alternative identifier/username)",
+  "pagination": "Not applicable / not documented",
+  "notes": "Notifications are unidirectional (server to agent only). Messages are not stored on the mobile device and are deleted after being viewed. Delivery can be delayed even though sending is immediate. Supports multiple recipients in a single request. No error codes, size limits, or escaping rules documented on this page.",
+  "additionalLinks": []
+ },
+ {
+  "url": "https://umovme.octacx.com/a/mix-de-produtos-api-itens-do-mix-api-mix-product/",
+  "title": "Mix de Produtos API - Itens do Mix (API Mix Product)",
+  "summary": "Portuguese documentation page describing how to manage Mix Product Items (Itens do Mix) in the uMov.me API. Mix items are stored as a custom entity (custom registry), so all operations go through the generic customEntity/customEntityEntry XML endpoints, parameterized by the custom registry ID for mix items (ID_CADASTRO_ITENSMIX). It covers creating a mix item (POST with XML body) and retrieving all items, items filtered by a specific mix (mixItem_mix query param), or a single record by ID. Authentication is via an API key embedded in the URL path; data format is XML.",
+  "entity": "Mix Product Item (Itens do Mix - custom entity)",
+  "endpoints": [
+   {
+    "method": "POST",
+    "path": "/CenterWeb/api/{apiKey}/customEntity/ID_CADASTRO_ITENSMIX/customEntityEntry.xml",
+    "description": "Create/add a mix item",
+    "params": "XML body: description, alternativeIdentifier, customFields (mixItem_mix, mixItem_order, mixItem_item)"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/customEntity/ID_CADASTRO_ITENSMIX/customEntityEntry.xml",
+    "description": "Retrieve all mix items"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/customEntity/ID_CADASTRO_ITENSMIX/customEntityEntry.xml?mixItem_mix=ID_REGISTRO_MIX",
+    "description": "Retrieve items belonging to a specific mix",
+    "params": "mixItem_mix (ID of the mix custom-entity record)"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/customEntity/ID_CADASTRO_ITENSMIX/customEntityEntry/{ID_REGISTRO_ITENSMIX}.xml",
+    "description": "Retrieve a single mix item record by ID"
+   }
+  ],
+  "fields": "description: string, required on creation; alternativeIdentifier: string, required for updates (external identifier); active: boolean; mixItem_mix: string (custom field referencing the mix record, ID_REGISTRO_MIX); mixItem_order: integer (item ordering within the mix); mixItem_item: string (custom field referencing the item record, ID_REGISTRO_ITEM)",
+  "auth": "API key embedded in URL path: /CenterWeb/api/{apiKey}/...",
+  "baseUrl": "Not explicitly shown; paths are relative /CenterWeb/api/{apiKey}/... (uMov.me API host)",
+  "dataFormat": "XML (endpoints end in .xml, request bodies are XML)",
+  "pagination": "Not mentioned on this page",
+  "notes": "Mix items are implemented as a customEntity, so the concrete registry ID (ID_CADASTRO_ITENSMIX) is environment-specific and must be substituted into the path. Referenced IDs: ID_REGISTRO_ITENSMIX (mix item record), ID_REGISTRO_MIX (mix record), ID_REGISTRO_ITEM (item record). No error codes, rate limits, or escaping rules documented.",
+  "additionalLinks": []
+ },
+ {
+  "url": "https://umovme.octacx.com/a/mix-de-produtos-api-mix-api/",
+  "title": "Mix de Produtos - API (Mix API)",
+  "summary": "Documents managing \"Mix de Produtos\" (product mix) records in uMov.me via the generic Custom Entity API (customEntityEntry resource). A mix is stored as an entry of a custom entity identified by ID_CADASTRO_MIX, optionally linked to a mix type via the custom field mix_mixType. The page shows XML examples for creating a mix (POST) and retrieving all or a specific mix record (GET). Authentication is via an API key embedded in the URL path; all payloads are XML. For updates, only alternativeIdentifier is mandatory.",
+  "entity": "Mix de Produtos (customEntityEntry of custom entity ID_CADASTRO_MIX)",
+  "endpoints": [
+   {
+    "method": "POST",
+    "path": "/CenterWeb/api/{apiKey}/customEntity/ID_CADASTRO_MIX/customEntityEntry.xml",
+    "description": "Create a mix record",
+    "params": "XML body: description, alternativeIdentifier, customFields.mix_mixType"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/customEntity/ID_CADASTRO_MIX/customEntityEntry.xml",
+    "description": "List all mix records (returns resourceName, size, entries with links)"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/customEntity/ID_CADASTRO_MIX/customEntityEntry/ID_REGISTRO_MIX.xml",
+    "description": "Retrieve a specific mix record by internal id"
+   }
+  ],
+  "fields": "description: string, required (mix name); alternativeIdentifier: string, required (only field required for updates); customFields.mix_mixType: string, optional (references mix type record ID_REGISTRO_TIPOMIX); id: string, response-only (internal record id); active: boolean, response-only/optional status flag",
+  "auth": "API key embedded in the URL path: /CenterWeb/api/{apiKey}/... No hostname shown on the page (paths are relative; standard uMov.me host is api.umov.me).",
+  "baseUrl": "/CenterWeb/api/{apiKey}/ (hostname not shown on page)",
+  "dataFormat": "XML (.xml extension on all endpoints)",
+  "pagination": "Not documented on this page; list response includes resourceName, size, and entries with entry links.",
+  "notes": "Uses the generic Custom Entity API — ID_CADASTRO_MIX is the environment-specific custom entity id, and mix type is a custom field (mix_mixType) referencing another custom entity record (ID_REGISTRO_TIPOMIX). For record updates, only alternativeIdentifier is mandatory. No error codes, rate limits, or character-escaping rules documented. Support tickets via https://umovme.octacx.com/login.",
+  "additionalLinks": []
+ },
+ {
+  "url": "https://umovme.octacx.com/a/mix-de-produtos-api-mix-de-produtos-api/",
+  "title": "Mix de Produtos API (uMov.me)",
+  "summary": "Documents the uMov.me Product Mix (Mix de Produtos) feature, implemented as three system-generated custom entities queried through the customEntity REST API. Lists how to fetch the mix-related custom entity IDs (filtering by structuralFunction=mix) and how to retrieve each entity's definition. Describes the three entities — Tipo de Mix (MIXTYPE), Mix (MIX) and Itens do Mix (MIXITEM) — including their custom fields, reference fields between entities, and mandatory flags. Data exchange is XML with the API key embedded in the URL path.",
+  "entity": "Mix de Produtos (custom entities: Tipo de Mix, Mix, Itens do Mix)",
+  "baseUrl": "/CenterWeb/api/{apiKey}/ (uMov.me CenterWeb API)",
+  "auth": "API key embedded in the URL path: /CenterWeb/api/{apiKey}/...",
+  "dataFormat": "XML",
+  "endpoints": [
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/customEntity.xml",
+    "description": "List custom entities; with structuralFunction=mix returns the three mix-related custom entity IDs",
+    "params": "structuralFunction=mix"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/customEntity/{id}.xml",
+    "description": "Get detailed definition of a specific mix-related custom entity",
+    "params": "id (custom entity ID from list endpoint)"
+   }
+  ],
+  "fields": "Tipo de Mix (structuralFunction=tipomix, alternativeIdentifier=MIXTYPE): description (string, required), alternativeIdentifier (string, required), no custom fields. Mix (structuralFunction=mix, alternativeIdentifier=MIX): custom field mix_mixType (fieldType C, subType 3 — reference to Tipo de Mix). Itens do Mix (structuralFunction=itensmix, alternativeIdentifier=MIXITEM): mixItem_mix (fieldType C, subType 3, mandatory — reference to Mix), mixItem_order (fieldType N, size 4 — mobile display order), mixItem_item (fieldType C, subType 3, mandatory — product/item reference).",
+  "pagination": "Not mentioned on this page.",
+  "notes": "Entities are structural/auto-generated by the system; extra custom fields may be added. mixItem_order controls display order on mobile. Sequential or concatenated alternative identifiers are recommended for mix items. No error codes, rate limits, or JSON support documented on this page.",
+  "additionalLinks": []
+ },
+ {
+  "url": "https://umovme.octacx.com/a/mix-de-produtos-api-tipo-de-mix-api-mixtype/",
+  "title": "Mix de Produtos API - Tipo de Mix API (MixType)",
+  "summary": "Documents the Mix Type (Tipo de Mix) entity of the uMov.me API, used to classify product mixes. Mix types are implemented as a custom entity, so all operations go through the generic customEntity endpoints using the internal registry ID of the mix-type custom entity (ID_CADASTRO_TIPOMIX) and record ID (ID_REGISTRO_TIPOMIX). Supports creating, listing, and retrieving mix types via XML payloads with root element <customEntityEntry>. Authentication is via an API key embedded in the URL path.",
+  "entity": "MixType (Tipo de Mix, custom entity)",
+  "baseUrl": "/CenterWeb/api/{apiKey}/",
+  "auth": "API key placed directly in the URL path: /CenterWeb/api/{apiKey}/...",
+  "dataFormat": "XML (root element <customEntityEntry>)",
+  "endpoints": [
+   {
+    "method": "POST",
+    "path": "/CenterWeb/api/{apiKey}/customEntity/{ID_CADASTRO_TIPOMIX}/customEntityEntry.xml",
+    "description": "Create a mix type record"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/customEntity/{ID_CADASTRO_TIPOMIX}/customEntityEntry.xml",
+    "description": "List all mix types"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/customEntity/{ID_CADASTRO_TIPOMIX}/customEntityEntry/{ID_REGISTRO_TIPOMIX}.xml",
+    "description": "Retrieve a specific mix type record"
+   }
+  ],
+  "fields": "id: string, auto-generated record identifier; description: string, required; alternativeIdentifier: string, required (for updates, only the alternativeIdentifier is mandatory); active: boolean, optional (defaults to true)",
+  "pagination": "Not mentioned on this page",
+  "notes": "Mix types are custom entities: the caller must know the environment-specific custom entity registry ID (ID_CADASTRO_TIPOMIX) to build the URL. ID_REGISTRO_TIPOMIX identifies an individual record. For update operations only the alternativeIdentifier field is mandatory. No error codes, rate limits, or pagination documented on this page.",
+  "additionalLinks": []
+ },
+ {
+  "url": "https://umovme.octacx.com/a/paginação-na-consulta-e-inclusão-de-campos-customizáveis-via-api-umovme/",
+  "title": "Paginação na consulta e inclusão de campos customizáveis via API uMov.me",
+  "summary": "Guide page (Portuguese) explaining pagination on API queries and use of custom fields (campos customizáveis) in the uMov.me REST API. Queries return a maximum of 100 records per page, with additional pages fetched via the paging.page query parameter. It also shows how to create/update records (Schedule/tasks and Item) including customFields blocks, where each custom field is referenced by its alternative identifier. Examples use XML payloads against the CenterWeb API with the API key embedded in the URL path.",
+  "entity": "",
+  "baseUrl": "https://api.umov.me/CenterWeb/api/{apiKey}",
+  "auth": "API key embedded in the URL path: https://api.umov.me/CenterWeb/api/{apiKey}/...",
+  "dataFormat": "XML",
+  "pagination": "Maximum 100 records per query response; paginate with query param paging.page={n} (e.g. /schedule.xml?paging.page=1)",
+  "endpoints": [
+   {
+    "method": "GET",
+    "path": "/schedule.xml",
+    "description": "List schedules (tasks) with pagination",
+    "params": "paging.page"
+   },
+   {
+    "method": "POST",
+    "path": "/schedule.xml",
+    "description": "Create/update a schedule (task), including customFields",
+    "params": "agent.alternativeIdentifier, serviceLocal.alternativeIdentifier, activitiesOrigin, date, hour, activityRelationship.activity.alternativeIdentifier, customFields"
+   },
+   {
+    "method": "POST",
+    "path": "/item.xml",
+    "description": "Create/update an item, including customFields",
+    "params": "description, subGroup.id, alternativeIdentifier, customFields"
+   }
+  ],
+  "fields": "Schedule: agent.alternativeIdentifier (string), serviceLocal.alternativeIdentifier (string), activitiesOrigin, date, hour, activityRelationship.activity.alternativeIdentifier (string), customFields (map keyed by field alternative identifier). Item: description (string), subGroup.id, alternativeIdentifier (string), customFields (map keyed by field alternative identifier). Required flags not stated on page.",
+  "notes": "Custom fields are sent inside <customFields> tags, each referenced by its alternative identifier; works for consulting, updating and inserting customizable records. Alternative identifiers must be unique — duplicates cause API errors. Alternative identifiers allow referencing agent/local directly without first querying for internal IDs.",
+  "additionalLinks": []
+ },
+ {
+  "url": "https://umovme.octacx.com/a/pessoas-e-relacionados-agent-agente/",
+  "title": "Pessoas e Relacionados – Agent (Agente)",
+  "entity": "Agent",
+  "summary": "Documents the Agent (Agente/Pessoa) entity of the uMov.me field-service REST API, corresponding to the \"Quem?\" (Who?) section of the platform. Covers listing agents with query filters, retrieving an agent by internal ID or alternativeIdentifier, and creating/updating agents via XML POST bodies. Authentication is an API key embedded in the URL path, base URL http://api.umov.me/CenterWeb/api/{apiKey}/, and all payloads are XML. For updates, only alternativeIdentifier is mandatory; creates require name, login, password and agentType. Custom fields (including multi-valued) and image import by URL are supported.",
+  "baseUrl": "http://api.umov.me/CenterWeb/api/{apiKey}/",
+  "auth": "API key placed in the URL path: http://api.umov.me/CenterWeb/api/{apiKey}/agent.xml — no headers or tokens.",
+  "dataFormat": "XML (requests and responses); HTML-form POSTs wrap the XML in a \"data\" parameter",
+  "endpoints": [
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/agent.xml",
+    "description": "List/search agents; returns summary with count and id/link pairs",
+    "params": "agentType.description, name, active, initialInsertDateTime, finalInsertDateTime"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/agent/{id}.xml",
+    "description": "Get agent by internal system ID"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/agent/alternativeIdentifier/{alternativeIdentifier}.xml",
+    "description": "Get agent by external alternative identifier"
+   },
+   {
+    "method": "POST",
+    "path": "/CenterWeb/api/{apiKey}/agent.xml",
+    "description": "Create a new agent (XML body; via form use data param)",
+    "params": "data (XML payload)"
+   },
+   {
+    "method": "POST",
+    "path": "/CenterWeb/api/{apiKey}/agent/{id}.xml",
+    "description": "Update agent by internal ID",
+    "params": "data (XML payload)"
+   },
+   {
+    "method": "POST",
+    "path": "/CenterWeb/api/{apiKey}/agent/alternativeIdentifier/{alternativeIdentifier}.xml",
+    "description": "Update agent by alternative identifier",
+    "params": "data (XML payload)"
+   }
+  ],
+  "fields": "id: integer, read-only internal ID; name: string, required on create; login: string, required on create; password: string, required on create; active: boolean, optional; email: string, optional; alternativeIdentifier: string, required for updates (external system ID); observation: string, optional; agentType: object (id or alternativeIdentifier), required on create; cellphoneIdd: string, optional (country code e.g. 55); cellphoneStd: string, optional (area code); cellphone: string, optional; centerwebUser: boolean, optional (portal access); mobileUser: boolean, optional (mobile app access); centerwebUserRole: string, optional (role code e.g. \"D\"); lastGeoPosition: string, optional (lat,long); accessRole: object (id or alternativeIdentifier), optional; image: object with imageUrlImport (remote URL), optional; customFields: object, optional (multi-valued supported)",
+  "pagination": "Not documented on this page; list queries return a summary (result count plus id/link pairs) and details must be fetched per-entity.",
+  "notes": "Updates require only alternativeIdentifier; all other fields optional on update. Date/time format: AAAA-MM-DD HH:MM:SS. Multi-valued custom fields follow a separate procedure documented in the \"Custom Field / Custom Field Value\" article. Agent type IDs come from center.umov.me/CenterWeb/agentType. No JSON examples; XML only. No error codes or rate limits listed on this page.",
+  "additionalLinks": []
+ },
+ {
+  "url": "https://umovme.octacx.com/a/pessoas-e-relacionados-smsrequest-envio-de-sms/",
+  "title": "SmsRequest - Envio de SMS (Pessoas e Relacionados)",
+  "summary": "Documents the uMov.me SmsRequest resource, used to send SMS messages to agents (people) or service locations registered in uMov.me. SMS is sent via a POST to /CenterWeb/api/{apiKey}/smsRequest.xml with XML payloads. The target can be identified by agent.id, agent.alternativeIdentifier, or serviceLocal.alternativeIdentifier, together with the message text and a sendDownloadLink flag. Sending requires the agent to have a valid mobile number and the customer to have a Zenvia account (configured via Help Desk) for SMS billing. When using alternativeIdentifier, the SMS is only sent if exactly one matching agent is found.",
+  "entity": "SmsRequest",
+  "endpoints": [
+   {
+    "method": "POST",
+    "path": "/CenterWeb/api/{apiKey}/smsRequest.xml",
+    "description": "Send an SMS to an agent or a service location",
+    "params": "agent.id | agent.alternativeIdentifier | serviceLocal.alternativeIdentifier, message, sendDownloadLink"
+   }
+  ],
+  "fields": "agent.id: integer (one of the identifiers required, for agent SMS); agent.alternativeIdentifier: string (alternative to agent.id); serviceLocal.alternativeIdentifier: string (for service-location SMS); message: string (required, SMS content); sendDownloadLink: boolean (required, whether to include app download link)",
+  "auth": "API key embedded in the URL path: /CenterWeb/api/{apiKey}/...",
+  "baseUrl": "Not explicitly stated on the page (paths shown as /CenterWeb/api/{apiKey}/...)",
+  "dataFormat": "XML",
+  "pagination": "Not mentioned",
+  "notes": "When posting with alternativeIdentifier, SMS is only sent if exactly one agent matches. Agent must have a correctly registered mobile phone number. Customer must have a Zenvia account for SMS cost billing; Zenvia credentials must be configured via Help Desk. No error codes, pagination, or rate limits documented on this page.",
+  "additionalLinks": []
+ },
+ {
+  "url": "https://umovme.octacx.com/a/pessoas-e-relacionados-team-equipe/",
+  "title": "Pessoas e Relacionados - Team (Equipe)",
+  "summary": "Documents the Team (Equipe) entity of the uMov.me field-service REST API, which manages teams of people/agents. Covers CRUD endpoints for teams plus sub-endpoints to add, remove, and query individual agents within a team. Requests use XML over a base URL containing the API key in the path. Notable behavior: updating a team with an agentRelationship block replaces all existing members, while individual agent add/remove endpoints only affect the targeted relationship.",
+  "entity": "Team (Equipe)",
+  "baseUrl": "https://umovme.octacx.com/CenterWeb/api/{$apiKey}",
+  "auth": "API key passed as a path segment in the URL: /CenterWeb/api/{$apiKey}/...",
+  "dataFormat": "XML (endpoints use .xml suffix)",
+  "endpoints": [
+   {
+    "method": "GET",
+    "path": "/team.xml",
+    "description": "List all teams (returns only ids and links)"
+   },
+   {
+    "method": "GET",
+    "path": "/team/{id}.xml",
+    "description": "Retrieve a specific team"
+   },
+   {
+    "method": "POST",
+    "path": "/team.xml",
+    "description": "Create a team",
+    "params": "description, alternativeIdentifier, active, teamType, agentRelationship"
+   },
+   {
+    "method": "POST",
+    "path": "/team/{id}.xml",
+    "description": "Update a team (agentRelationship block replaces all existing members)",
+    "params": "description, alternativeIdentifier, active, teamType, agentRelationship"
+   },
+   {
+    "method": "POST",
+    "path": "/team/{teamId}/agent.xml",
+    "description": "Add a person (agent) to a team",
+    "params": "agent id, responsible"
+   },
+   {
+    "method": "DELETE",
+    "path": "/team/{teamId}/agent/{agentId}.xml",
+    "description": "Remove a person from a team (deletes only the relationship, not the person)"
+   },
+   {
+    "method": "GET",
+    "path": "/team/{teamId}/agent/{agentId}.xml",
+    "description": "Query a specific person within a team"
+   }
+  ],
+  "fields": "Team: id (Integer, auto-generated, not required); description (String, required); alternativeIdentifier (String, required only for updates); active (Boolean, optional); teamType (Object with id and description, required); agentRelationship (Object, optional, nested agent associations). Agent within team: id (Integer, required for all operations); name (String); alternativeIdentifier (String); responsible (Boolean, optional, marks team lead).",
+  "pagination": "Not mentioned; list responses include a <size> element (e.g. <size>3</size>) with entries containing id and link attributes only.",
+  "notes": "List responses return only IDs and links, not full entity details. Updating via <agentRelationship> removes ALL existing team members and then adds the specified ones; use individual agent add/remove endpoints to change membership without affecting other members. Removing an agent deletes only the relationship; the person record remains. No error codes or rate limits mentioned on this page.",
+  "additionalLinks": []
+ },
+ {
+  "url": "https://umovme.octacx.com/a/rotas-e-relacionados-itinerary-rotas/",
+  "title": "Rotas e relacionados - Itinerary (Rotas)",
+  "summary": "Documents the uMov.me Itinerary (Rotas) REST entity for route management. Provides CRUD-style operations via GET (list, by id, by alternativeIdentifier) and POST (create, update by id or alternativeIdentifier) under /CenterWeb/api/{apiKey}/. Payloads are XML primarily (JSON supported). Lists entity fields such as description, alternativeIdentifier, origin, agentRelation, displayOrder, active, exclusive, itineraryDefault and nested activities/serviceLocal/agent links. Notes that GETs on an existing route do not return linked activities, locations and people, and that list responses contain only id and link per entry.",
+  "entity": "Itinerary (Rotas)",
+  "baseUrl": "/CenterWeb/api/{apiKey}/",
+  "auth": "API key embedded in URL path: /CenterWeb/api/{apiKey}/...",
+  "dataFormat": "XML (primary, .xml suffix on resources); JSON supported",
+  "endpoints": [
+   {
+    "method": "GET",
+    "path": "itinerary.xml",
+    "description": "List all routes (returns only id and link per entry)",
+    "params": "apiKey"
+   },
+   {
+    "method": "GET",
+    "path": "itinerary/{id}.xml",
+    "description": "Fetch a specific route by internal ID",
+    "params": "apiKey, id"
+   },
+   {
+    "method": "GET",
+    "path": "itinerary/alternativeIdentifier/{alternativeIdentifier}.xml",
+    "description": "Fetch a route by alternative identifier",
+    "params": "apiKey, alternativeIdentifier"
+   },
+   {
+    "method": "POST",
+    "path": "itinerary.xml",
+    "description": "Create a new route",
+    "params": "apiKey, XML body"
+   },
+   {
+    "method": "POST",
+    "path": "itinerary/{id}.xml",
+    "description": "Update a route by internal ID",
+    "params": "apiKey, id, XML body"
+   },
+   {
+    "method": "POST",
+    "path": "itinerary/alternativeIdentifier/{alternativeIdentifier}.xml",
+    "description": "Update a route by alternative identifier",
+    "params": "apiKey, alternativeIdentifier, XML body"
+   }
+  ],
+  "fields": "id: integer, optional (system-generated); description: string, required; alternativeIdentifier: string, required (mandatory for updates); origin: integer, optional; agentRelation: integer, optional; displayOrder: integer, optional; active: boolean, optional; validateTasksOnField: integer, optional; exclusive: boolean, optional; itineraryDefault: boolean, optional; activities: nested (linked activities, not returned on GET); serviceLocal: nested (linked service locations, not returned on GET); agent: nested (linked agents/people, not returned on GET)",
+  "pagination": "Not documented on this page",
+  "notes": "When querying an already-created route, the system does not list linked activities, locations and people (separate calls needed). List endpoint returns only id + link per entry, not full details. For updates, only alternativeIdentifier is mandatory. No error codes documented on this page.",
+  "additionalLinks": []
+ },
+ {
+  "url": "https://umovme.octacx.com/a/rotas-e-relacionados-itinerary-agent-agentes-das-rotas/",
+  "title": "Rotas e relacionados - Itinerary Agent (Agentes das Rotas)",
+  "summary": "Documents the Itinerary Agent (Agentes das Rotas) resource of the uMov.me field-service REST API, which links agents to itineraries (routes). Covers batch create/update (up to 100 per request, all-or-nothing transaction), listing with filters by agent, itinerary, or alternativeIdentifier of linked entities, retrieval by internal ID, and deletion by internal ID or by the alternative identifiers of the itinerary and agent. Authentication is an API key embedded in the URL path; data is exchanged primarily as XML (JSON supported via extension). Responses use a result envelope with resourceName, size, and entries containing id/link attributes.",
+  "entity": "ItineraryAgent",
+  "baseUrl": "/CenterWeb/api/{apiKey}/",
+  "auth": "API key in URL path: /CenterWeb/api/{apiKey}/...",
+  "dataFormat": "XML primary; JSON supported via .json extension",
+  "endpoints": [
+   {
+    "method": "POST",
+    "path": "/batch/itineraryAgents.xml",
+    "description": "Batch create/update up to 100 itinerary agents per request; transaction aborted entirely on any error"
+   },
+   {
+    "method": "GET",
+    "path": "/itineraryAgent.xml",
+    "description": "List itinerary agents with optional filters",
+    "params": "agent={id}, itinerary={id}, itinerary.alternativeIdentifier={value}, agent.alternativeIdentifier and other linked-entity attribute filters"
+   },
+   {
+    "method": "GET",
+    "path": "/itineraryAgent/{id}.xml",
+    "description": "Retrieve a specific itinerary agent by internal ID"
+   },
+   {
+    "method": "DELETE",
+    "path": "/itineraryAgent/{id}.xml",
+    "description": "Delete itinerary agent by internal ID"
+   },
+   {
+    "method": "DELETE",
+    "path": "/itineraryAgent/itinerary/{itineraryAlternativeIdentifier}/agent/{agentAlternativeIdentifier}.xml",
+    "description": "Delete itinerary agent by alternative identifiers of the itinerary and agent"
+   }
+  ],
+  "fields": "id: integer (internal identifier); itinerary: object (linked itinerary: id, description, origin, agentRelation, displayOrder, alternativeIdentifier, active, validateTasksOnField, exclusive, itineraryDefault); agent: object (linked agent: id, name, login, active, alternativeIdentifier)",
+  "pagination": "Not specified on this page; list responses include a size element and entries with id/link attributes.",
+  "notes": "Batch limit 100 records per request; batch is all-or-nothing (entire operation aborted if any record errors). Response envelope: result > resourceName, size, entries > entry (attributes id, link). No error codes, pagination, or character-escaping rules given on this page.",
+  "additionalLinks": []
+ },
+ {
+  "url": "https://umovme.octacx.com/a/rotas-e-relacionados-itinerary-servicelocal-locais-das-rotas/",
+  "title": "Rotas e Relacionados - Itinerary ServiceLocal (Locais das Rotas)",
+  "summary": "Documents the uMov.me itineraryServiceLocal entity, which links service locations (serviceLocal) to routes (itinerary) with an ordering field (treatmentOrder). Covers batch create/update via POST (max 100 items, all-or-nothing transaction), GET list with filters by serviceLocal, itinerary, or linked-entity alternativeIdentifier, GET by internal id, and DELETE by internal id or by the pair of alternative identifiers of itinerary and serviceLocal. Data is exchanged in XML under the /CenterWeb/api/{apiKey}/ base path, authenticated via API key in the URL.",
+  "entity": "ItineraryServiceLocal",
+  "baseUrl": "/CenterWeb/api/{apiKey}/",
+  "auth": "API key embedded in URL path segment: /CenterWeb/api/{apiKey}/...",
+  "dataFormat": "XML (.xml resource suffix)",
+  "endpoints": [
+   {
+    "method": "POST",
+    "path": "/CenterWeb/api/{apiKey}/batch/itineraryServiceLocals.xml",
+    "description": "Batch create/update route locations; max 100 per request; transactional all-or-nothing; response returns entries with id and link to each created resource",
+    "params": "body: list of itineraryServiceLocal (serviceLocal, itinerary, treatmentOrder)"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/itineraryServiceLocal.xml",
+    "description": "Search/list route locations with optional filters",
+    "params": "serviceLocal={id}, itinerary={id}, itinerary.alternativeIdentifier={value}"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/itineraryServiceLocal/{id}.xml",
+    "description": "Retrieve a single route location by internal id"
+   },
+   {
+    "method": "DELETE",
+    "path": "/CenterWeb/api/{apiKey}/itineraryServiceLocal/{id}.xml",
+    "description": "Delete a route location by internal id"
+   },
+   {
+    "method": "DELETE",
+    "path": "/CenterWeb/api/{apiKey}/itineraryServiceLocal/itinerary/{itineraryAlternativeIdentifier}/serviceLocal/{serviceLocalAlternativeIdentifier}.xml",
+    "description": "Delete a route location by the alternative identifiers of its itinerary and serviceLocal"
+   }
+  ],
+  "fields": "itineraryServiceLocal: id (Integer, system-generated), serviceLocal (Object, required), itinerary (Object, required), treatmentOrder (Integer, required - defines order location is included in route and shown on mobile). serviceLocal sub-fields: id (Integer, required), description (String), active (Boolean), alternativeIdentifier (String), corporateName (String). itinerary sub-fields: id (Integer, required), description (String), origin (Integer), agentRelation (Integer), displayOrder (Integer), alternativeIdentifier (String), active (Boolean), validateTasksOnField (Integer), exclusive (Boolean), itineraryDefault (Boolean).",
+  "pagination": "Not mentioned on this page.",
+  "notes": "Batch endpoint limited to 100 route locations per request; batch is transactional - if any error occurs the entire operation aborts and nothing is inserted. treatmentOrder must be provided for each itineraryServiceLocal and controls both route sequence and mobile display order. Batch response returns entry elements with id attribute and link to each individual resource path.",
+  "additionalLinks": []
+ },
+ {
+  "url": "https://umovme.octacx.com/a/section-seção/",
+  "title": "Section (Seção) - uMov.me API",
+  "summary": "Documents the Section (Seção) entity of the uMov.me field-service REST API. Sections group fields within activities. The page shows how to list sections, filter them by activity description, and fetch a single section by numeric ID or by alternativeIdentifier. Requests use an API key embedded in the URL path and responses are XML; list responses return resourceName, size, and entries containing IDs plus links to the individual resources. Field list includes ordering, mandatory/active flags, item-handling settings (useItem, itemFillMode, displayItemsInMobile), quiz/lock flags, and linked collections of sectionFields, mathExpressions, and logicalExpressions.",
+  "entity": "Section",
+  "endpoints": [
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/section.xml",
+    "description": "List all sections"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/section.xml?activity.description={value}",
+    "description": "Search sections filtered by activity description",
+    "params": "activity.description"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/section/{id}.xml",
+    "description": "Retrieve a specific section by numeric ID"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/section/alternativeIdentifier/{identifier}",
+    "description": "Retrieve a section by its alternative identifier"
+   }
+  ],
+  "fields": "id: Integer (unique identifier); description: String (section name); order: Integer (display order); alternativeIdentifier: String (alternate lookup key); active: Boolean; mandatory: Integer (0/1 required flag); useItem: Integer (item usage flag); findItemsByIdentifier: Boolean; itemFillMode: Integer; groupingItemsTypeOnMobile: Integer; activityHistoryReportType: String (e.g. \"V\"); displayItemsInMobile: Integer; seeItemsCollectedAutomatically: Boolean; quizMode: Boolean; locked: Boolean; markCompleteGroup: Boolean; documentation: String; sectionFields: Collection (links to related section fields); mathExpressions: Collection (links); logicalExpressions: Collection (links)",
+  "auth": "API key embedded in the URL path segment: /CenterWeb/api/{apiKey}/...",
+  "baseUrl": "/CenterWeb/api/{apiKey}",
+  "dataFormat": "XML",
+  "pagination": "Not explicitly documented; list responses include resourceName, size, and entries with IDs and links to individual resources.",
+  "notes": "Only GET (read) operations documented for this entity. List responses return entry stubs (id + link) rather than full objects, requiring follow-up requests per resource. Filtering supports dotted relation syntax (e.g. activity.description). No error codes, rate limits, or character-escaping rules mentioned on this page.",
+  "additionalLinks": []
+ },
+ {
+  "url": "https://umovme.octacx.com/a/section-field-campo-da-seção/",
+  "title": "Section Field (Campo da Seção)",
+  "entity": "sectionField",
+  "summary": "Documents the sectionField entity of the uMov.me API, representing customizable fields of activity sections. Covers read-only (GET) operations: listing all section fields, filtered search via query parameters, and retrieval by numeric ID or by alternativeIdentifier. Requests use the path pattern /CenterWeb/api/{apiKey}/sectionField.xml with API-key-in-path authentication, and responses are XML with a paginated list structure (result/size/entries with entry id and link attributes). No POST/PUT/DELETE endpoints, error codes, or rate limits are documented on this page.",
+  "endpoints": [
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/sectionField.xml",
+    "description": "List all section fields (paginated XML list)"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/sectionField.xml?{params}",
+    "description": "Search section fields with filter parameters (e.g. ?description=foto)",
+    "params": "description (only exemplified param; other entity fields likely usable)"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/sectionField/{id}.xml",
+    "description": "Get a specific section field by numeric ID"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/sectionField/alternativeIdentifier/{identifier}",
+    "description": "Get a section field by its alternative identifier"
+   }
+  ],
+  "fields": "id: Integer, required (record identifier); alternativeIdentifier: String, required only for update operations; description: String, optional (field label); type: String, optional (field type code, e.g. \"I\"; codes not enumerated); order: Integer, optional (display order); mobilePageNumber: Integer, optional; nullable: Boolean, optional; updatable: Boolean, optional; visible: Boolean, optional; active: Boolean, optional; persistent: Boolean, optional; locked: Boolean, optional; showValueInMobile: Boolean, optional; showDataCollected: Boolean, optional; tip: String, optional (help text); documentation: String, optional",
+  "auth": "API key embedded in the URL path: /CenterWeb/api/{apiKey}/...",
+  "baseUrl": "Path root /CenterWeb/api/{apiKey}/ (host not explicitly shown in examples)",
+  "dataFormat": "XML (endpoints use .xml suffix; JSON not mentioned)",
+  "pagination": "List responses are paginated XML: <result> with <size> and <entries> of entry elements carrying id and link attributes; page-size/page-number parameters not documented on this page",
+  "notes": "Only GET operations documented; alternativeIdentifier is mandatory only when updating records; searches can be refined by sending query parameters (only \"description\" exemplified, e.g. ?description=foto); type field value \"I\" appears in examples but type codes are not explained; no error codes or rate limits documented.",
+  "additionalLinks": []
+ },
+ {
+  "url": "https://umovme.octacx.com/a/servicelocal-activity-atividades-dos-locais/",
+  "title": "ServiceLocal Activity (Atividades dos Locais)",
+  "summary": "Documents the ServiceLocal Activity entity of the uMov.me CenterWeb REST API, which links activities to service locals (locations), including which weekdays each activity runs. Provides a GET search endpoint, a batch POST endpoint for creating/updating up to 100 serviceLocalActivity records per request (all-or-nothing transaction), and a DELETE endpoint by id. Data is exchanged as XML, with the API key embedded in the URL path. Records reference serviceLocal and activity by alternativeIdentifier and may carry custom fields such as execution frequency.",
+  "entity": "ServiceLocalActivity",
+  "baseUrl": "/CenterWeb/api/{apiKey} (uMov.me CenterWeb API root, typically https://api.umov.me/CenterWeb/api/{apiKey})",
+  "auth": "API key embedded in the URL path: /CenterWeb/api/{$apiKey}/... — no separate auth header documented.",
+  "dataFormat": "XML (.xml suffix on all endpoints)",
+  "endpoints": [
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/serviceLocalActivity.xml",
+    "description": "Search/query service local activities",
+    "params": "filter query params (e.g. serviceLocal.alternativeIdentifier, activity.alternativeIdentifier)"
+   },
+   {
+    "method": "POST",
+    "path": "/CenterWeb/api/{apiKey}/batch/serviceLocalActivities.xml",
+    "description": "Batch create/update service local activities (max 100 per request, transactional all-or-nothing)",
+    "params": "XML body with list of serviceLocalActivity elements"
+   },
+   {
+    "method": "DELETE",
+    "path": "/CenterWeb/api/{apiKey}/serviceLocalActivity/{id}.xml",
+    "description": "Delete a specific service local activity by id"
+   }
+  ],
+  "fields": "serviceLocal.alternativeIdentifier: string (reference to the location); activity.alternativeIdentifier: string (reference to the activity); weekdays.monday: boolean; weekdays.tuesday: boolean; weekdays.wednesday: boolean; weekdays.thursday: boolean; weekdays.friday: boolean; weekdays.saturday: boolean; weekdays.sunday: boolean; customFields.frequencia_execucao: numeric (execution frequency); customFields.local_activity_mix.alternativeIdentifier: string (mix activity reference)",
+  "pagination": "Not mentioned on this page.",
+  "notes": "Batch limit: maximum 100 serviceLocalActivity records per request; if any error occurs the entire batch operation is aborted (transactional). Batch response is XML with resourceName, size, and entries containing id and link attributes. Delete response returns statusCode 200 with message 'serviceLocalActivity: serviceLocalActivity.activity.exclusion.successful'.",
+  "additionalLinks": []
+ },
+ {
+  "url": "https://umovme.octacx.com/a/servicelocalclassification-classificação-de-local-de-atendimento/",
+  "title": "ServiceLocalClassification - Classificação de Local de Atendimento",
+  "summary": "Documents the ServiceLocalClassification entity (service location classification) of the uMov.me field-service REST API. Provides CRUD-style endpoints: listing/searching classifications, retrieving by internal ID or alternativeIdentifier, and creating/updating via POST. Data is exchanged as XML under the /CenterWeb/api/{apiKey}/ path, with the API key embedded in the URL. The entity has four fields (id, description, alternativeIdentifier, active); description is required on creation, while updates require only the alternativeIdentifier. List responses return resourceName, size, and entries with id + link per record.",
+  "entity": "ServiceLocalClassification",
+  "baseUrl": "/CenterWeb/api/{apiKey}/",
+  "auth": "API key passed in the URL path as {apiKey} segment: /CenterWeb/api/{apiKey}/...",
+  "dataFormat": "XML",
+  "fields": "id: Integer, optional (auto-generated system identifier); description: String, REQUIRED (classification name); alternativeIdentifier: String, optional (external system ID; the only required field for updates); active: Boolean, optional (status flag)",
+  "endpoints": [
+   {
+    "method": "GET",
+    "path": "/serviceLocalClassification.xml",
+    "description": "List all service local classifications",
+    "params": "description, active (filters)"
+   },
+   {
+    "method": "GET",
+    "path": "/serviceLocalClassification.xml?{params}",
+    "description": "Search classifications with filters",
+    "params": "description, active"
+   },
+   {
+    "method": "GET",
+    "path": "/serviceLocalClassification/{id}.xml",
+    "description": "Retrieve a classification by internal ID"
+   },
+   {
+    "method": "GET",
+    "path": "/serviceLocalClassification/alternativeIdentifier/{alternativeId}.xml",
+    "description": "Retrieve a classification by alternative identifier"
+   },
+   {
+    "method": "POST",
+    "path": "/serviceLocalClassification.xml",
+    "description": "Create a new classification",
+    "params": "description (required), alternativeIdentifier, active"
+   },
+   {
+    "method": "POST",
+    "path": "/serviceLocalClassification/{id}.xml",
+    "description": "Update a classification by internal ID"
+   },
+   {
+    "method": "POST",
+    "path": "/serviceLocalClassification/alternativeIdentifier/{alternativeId}.xml",
+    "description": "Update a classification by alternative identifier (only alternativeIdentifier mandatory)"
+   }
+  ],
+  "pagination": "Not documented; list responses include size (count) and entries with id and link per record",
+  "notes": "For record updates, only the alternativeIdentifier is mandatory (\"Para atualização de cadastro, somente o identificador alternativo é obrigatório\"). List response wrapper contains resourceName, size, and entries (each with id and link). Example uses underscore-style alternative identifiers (e.g. id_alternativo). No error codes, rate limits, or pagination documented on this page.",
+  "additionalLinks": []
+ },
+ {
+  "url": "https://umovme.octacx.com/a/serviço-de-callback-para-api-de-tarefas/",
+  "title": "Serviço de Callback para API de Tarefas",
+  "summary": "Documents uMov.me's callback (webhook) service that notifies external systems whenever a task/activity execution history is received in the backend, removing the need to poll the API. Two callback flavors exist: an XML callback configured via an alphanumeric custom field with identifier \"callback\" on the task entity containing the destination URL, and a JSON callback configured per activity by the Help Desk (requires an HTTPS URL, optional authentication, activity description, and environment). The XML payload is a Schedule element with the task alternativeIdentifier and activityHistory ids; the JSON payload contains historyId, taskId, clientId and activityId. Callbacks fire exactly once per history, only for histories received after activation, and can optionally be delayed until all photos have synced; processed histories are marked as integrated.",
+  "entity": "Callback (Schedule / ActivityHistory notification)",
+  "endpoints": [
+   {
+    "method": "POST",
+    "path": "{customer-provided callback URL}",
+    "description": "uMov.me POSTs to the customer's configured URL (HTTPS required for JSON variant) when a task history arrives; XML variant sends a Schedule payload, JSON variant sends {historyId, taskId, clientId, activityId}",
+    "params": "XML: Schedule.alternativeIdentifier, activityHistories.activityHistory@id; JSON: historyId, taskId, clientId, activityId"
+   }
+  ],
+  "fields": "XML payload: Schedule.alternativeIdentifier (string, task alternative identifier), Schedule.activityHistories.activityHistory[@id] (string/number, history id). JSON payload: historyId (string/number), taskId (string/number), clientId (string/number), activityId (string/number). Configuration: custom field on task entity, type alphanumeric, identifier \"callback\", value = destination URL.",
+  "auth": "Not specified for uMov.me itself; JSON callback allows optional customer-defined authentication on the destination URL (arranged via Help Desk). Activation of either callback type requires contacting the uMov.me Help Desk.",
+  "baseUrl": "",
+  "dataFormat": "XML (Schedule payload) or JSON (history notification payload), depending on callback type",
+  "pagination": "Not applicable / not mentioned",
+  "notes": "Callback executes exactly once per history; only histories received after activation trigger callbacks; by default fires immediately upon history receipt, with optional configuration to wait until all photos are synced; histories are marked as integrated to prevent duplicate processing. Reference implementation: https://github.com/umovme/umovme-callback-nodejs. Related article on ActivityHistory: https://ajuda.umov.me/kb/article/120334/activityhistory-historico-de-execucao-de-atividades. No error codes, rate limits, or base URL documented.",
+  "additionalLinks": []
+ },
+ {
+  "url": "https://umovme.octacx.com/a/tarefas-e-relacionados-schedule-tarefas/",
+  "title": "Tarefas e Relacionados - Schedule (Tarefas)",
+  "entity": "Schedule",
+  "summary": "Documents the Schedule (Tarefas/tasks) resource of the uMov.me CenterWeb REST API. Covers listing tasks with query filters (service location, agent, insert date range, situation, custom fields), fetching by internal ID or alternativeIdentifier, creating and partially updating tasks via POST, batch create/update (max 50 per request, atomic), and cancelling tasks by setting situation.id=70. Data is exchanged as XML; the API key is embedded in the URL path. Task situations: 30=pending, 40=in field, 50=returned/executed, 70=cancelled.",
+  "baseUrl": "/CenterWeb/api/{apiKey}/",
+  "auth": "API key embedded in the URL path: /CenterWeb/api/{apiKey}/...",
+  "dataFormat": "XML (.xml suffix on resources); POST body wrapped in a \"data\" form parameter",
+  "endpoints": [
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/schedule.xml",
+    "description": "List all tasks; returns resourceName, size, entries with id and link",
+    "params": "serviceLocal, serviceLocal.alternativeIdentifier, agent, initialInsertDateTime (AAAA-MM-DD HH:MM:SS), finalInsertDateTime, situation (30/40/50/70), serviceLocal.country, agent.active, situation.description"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/schedule/{id}.xml",
+    "description": "Get task by internal ID; full object including linked activities"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/schedule/alternativeIdentifier/{alternativeIdentifier}.xml",
+    "description": "Get task by alternative identifier"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/schedule/.xml?{customFieldAlternativeId}={value}",
+    "description": "Search tasks by custom field value",
+    "params": "customFieldAlternativeId=value"
+   },
+   {
+    "method": "POST",
+    "path": "/CenterWeb/api/{apiKey}/schedule.xml",
+    "description": "Create task (also supports agent.alternativeIdentifier / serviceLocal.alternativeIdentifier)",
+    "params": "agent.id (required), serviceLocal.id (required), date (required), hour (required), observation, alternativeIdentifier, scheduleType.id, activitiesOrigin, activityRelationship, customFields, image.imageUrlImport"
+   },
+   {
+    "method": "POST",
+    "path": "/CenterWeb/api/{apiKey}/schedule/{id}.xml",
+    "description": "Update task by internal ID (partial updates); also used to cancel via situation.id=70"
+   },
+   {
+    "method": "POST",
+    "path": "/CenterWeb/api/{apiKey}/schedule/alternativeIdentifier/{alternativeIdentifier}.xml",
+    "description": "Update task by alternative identifier (partial updates)"
+   },
+   {
+    "method": "POST",
+    "path": "/CenterWeb/api/{apiKey}/batch/schedules.xml",
+    "description": "Batch create/update tasks; <schedules> wrapper, max 50, atomic (aborts entirely on any error)"
+   }
+  ],
+  "fields": "id: integer, auto-generated; alternativeIdentifier: string, optional (must resolve to a single record for updates); agent.id: integer, required on create; agent.alternativeIdentifier: string, alt to agent.id; serviceLocal.id: integer, required on create; serviceLocal.alternativeIdentifier: string, alt; date: date AAAA-MM-DD, required; hour: time HH:MM, required; situation.id: integer (30 pending, 40 in field, 50 returned/executed, 70 cancelled); situation.description: string; activitiesOrigin: integer (4 = manual); observation: string; active: boolean; image.imageUrlImport: URL string; activityRelationship: object (activities by id or alternativeIdentifier); customFields: object of key-value pairs (custom field alternativeId -> value); scheduleType.id: integer; executionHour: time; executionStartTime: datetime; executionEndTime: datetime; recreateTaskOnPda: boolean; exportSituation: integer; ignoringCanceledOnQuery: boolean",
+  "pagination": "Not documented on this page; list responses return <size> and <entries> with id/link per entry.",
+  "notes": "Batch limited to 50 tasks per request and is atomic (all-or-nothing). Alternative identifier lookups fail if multiple records share the same value. Linked activities appear only in detail responses, not in list responses, and all linked activities are returned regardless of execution status. Cancellation (situation.id=70) is rejected if the task is already executed (50) or cancelled (70). POST bodies are XML wrapped in a form parameter named \"data\". Batch responses include alternativeIdentifier attribute per entry.",
+  "additionalLinks": []
+ },
+ {
+  "url": "https://umovme.octacx.com/a/tarefas-e-relacionados-schedule-item-itens-das-tarefas/",
+  "title": "Tarefas e relacionados (Schedule Item) - Itens das Tarefas",
+  "summary": "Documents the ScheduleItem entity (items belonging to tasks/schedules) of the uMov.me field-service REST API. Covers batch creation/update of schedule items (max 100 per request, atomic transaction), searching schedule items with filters on the linked item and schedule, retrieving a specific schedule item by ID, and deleting by internal ID or by alternative identifiers of schedule and item. Requests use an API key embedded in the URL path and XML as the primary data format (JSON also supported). Custom fields are supported via a customFields tag documented on a separate page.",
+  "entity": "ScheduleItem",
+  "baseUrl": "https://umovme.octacx.com/CenterWeb/api/ (production API root is /CenterWeb/api/{apiKey}/...)",
+  "auth": "API key as a path segment in every endpoint URL: /CenterWeb/api/{$apiKey}/... No headers or tokens mentioned.",
+  "dataFormat": "XML (primary; endpoints end in .xml). JSON supported via format parameter.",
+  "endpoints": [
+   {
+    "method": "POST",
+    "path": "/CenterWeb/api/{apiKey}/batch/scheduleItems.xml",
+    "description": "Batch create/update schedule items; max 100 items per request; atomic — the whole operation is aborted if any error occurs",
+    "params": "XML body with list of scheduleItem elements"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/scheduleItem.xml",
+    "description": "Search/list schedule items with filters",
+    "params": "item (item ID), schedule (schedule ID), item.alternativeIdentifier, schedule.active (filters on linked entities)"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/scheduleItem/{id}.xml",
+    "description": "Retrieve a specific schedule item by internal ID"
+   },
+   {
+    "method": "DELETE",
+    "path": "/CenterWeb/api/{apiKey}/scheduleItem/{id}.xml",
+    "description": "Delete a schedule item by internal ID"
+   },
+   {
+    "method": "DELETE",
+    "path": "/CenterWeb/api/{apiKey}/scheduleItem/schedule/{scheduleAlternativeIdentifier}/item/{itemAlternativeIdentifier}.xml",
+    "description": "Delete a schedule item using the schedule's and item's alternative identifiers"
+   }
+  ],
+  "fields": "id: integer; item: object { id: integer, description: string, alternativeIdentifier: string, active: boolean }; schedule: object { id: integer, hour: time HH:MM, executionHour: time HH:MM, active: boolean, activitiesOrigin: integer, executionStartTime: time HH:MM }; customFields: object (custom field tags, documented separately). Required flags not explicitly stated on the page.",
+  "pagination": "Not mentioned on this page.",
+  "notes": "Batch endpoint limited to 100 schedule items per request and is atomic (any error aborts the entire operation). Batch responses return a result element with resourceName, size, and entries containing created resource IDs and links (e.g. /scheduleItem/{id}.xml). 200 OK confirms success/deletion. Custom fields supported via customFields tag.",
+  "additionalLinks": []
+ },
+ {
+  "url": "https://umovme.octacx.com/a/tarefas-e-relacionados-schedule-routing-roteirizador-de-tarefas/",
+  "title": "Tarefas e relacionados - Schedule Routing (Roteirizador de tarefas)",
+  "summary": "Documents the uMov.me Schedule Routing API, which orders (routes) a set of tasks (schedules) for an agent based on geographic coordinates. A single POST XML endpoint receives an origin (agent ID or geoCoordinate, plus transport mode), a list of up to 50 tasks (by internal id or alternativeIdentifier, optionally with dependencies), and returns each task with a calculated priority (10, 20, 30...), estimated arrival time, and partial/total distances. Routing uses linear distance between points; when estimate=true it calls the Google Maps API for time/distance estimates. It can optionally update task priorities/statuses (e.g., moving tasks from 'Em Preparação' to 'Pendente de Envio para Campo').",
+  "entity": "ScheduleRouting",
+  "endpoints": [
+   {
+    "method": "POST",
+    "path": "/CenterWeb/api/{apiKey}/scheduleRouting.xml",
+    "description": "Routes (orders) up to 50 tasks for an agent from a given origin, returning priority order, estimated time, and distances",
+    "params": "route (bool, default true), origin.agent.id or origin.geoCoordinate, origin.transportMode (0=car,1=bicycle,2=walking), updateSchedules (bool, default true), startTime (datetime), estimate (bool, default false), schedules.schedule.id or alternativeIdentifier, schedules.schedule.dependencies.schedule.id"
+   }
+  ],
+  "fields": "Request: route (boolean, optional, default true — whether router should order tasks); origin.agent.id (integer, required unless geoCoordinate used); origin.geoCoordinate (string, conditional alternative origin); origin.transportMode (integer 0-2, optional, 0=Car default, 1=Bicycle, 2=Walking); updateSchedules (boolean, optional, default true — update task priority/status); startTime (datetime, optional — when routing will be executed); estimate (boolean, optional, default false — call Google Maps API for distance/time); schedules.schedule.id (integer, required*) or schedules.schedule.alternativeIdentifier (string, required* — one of the two); schedules.schedule.dependencies.schedule.id (integer, optional — task precedence). Response: priority (integer — calculated order 10,20,30...); estimationTime (datetime — estimated arrival); distance (integer, meters, partial); totalDistance (integer, meters, cumulative from origin)",
+  "auth": "API key embedded in URL path: /CenterWeb/api/{apiKey}/scheduleRouting.xml",
+  "baseUrl": "/CenterWeb/api/{apiKey}/ (host not explicitly stated on page; uMov.me API host is typically https://api.umov.me)",
+  "dataFormat": "XML (request and response)",
+  "pagination": "Not applicable; single POST request limited to 50 tasks per call",
+  "notes": "Max 50 tasks per request. Tasks must be identified by internal ID or alternativeIdentifier. All tasks must have valid GPS coordinates or the API returns an error. Routing is based on linear (straight-line) distance; Google Maps API is only used for time/distance estimates when estimate=true. With updateSchedules=true, tasks in status 'Em Preparação' change to 'Pendente de Envio para Campo'. Optional estimate fields (total/partial estimated distance in Km, total/partial estimated time in min) can be stored on the task only if enabled via Help Desk request to ajuda@umov.me. Dependencies must be declared to enforce task precedence.",
+  "additionalLinks": []
+ },
+ {
+  "url": "https://umovme.octacx.com/a/teamtype-tipo-de-equipe/",
+  "title": "TeamType (Tipo de Equipe)",
+  "summary": "Documents the uMov.me TeamType (Tipo de Equipe) entity, used to define team types for later association with teams. Covers listing all team types, fetching one by ID, creating, and updating via XML REST endpoints under /CenterWeb/api/{apiKey}/teamType. List responses return a resource envelope with size and entry elements carrying id and link attributes. Updates accept partial payloads, with alternativeIdentifier mandatory only on updates.",
+  "entity": "TeamType",
+  "baseUrl": "/CenterWeb/api/{apiKey}/ (host not explicitly stated on page)",
+  "auth": "API key embedded in URL path: /CenterWeb/api/{apiKey}/...",
+  "dataFormat": "XML",
+  "endpoints": [
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/teamType.xml",
+    "description": "List all team types (returns entries with id and resource link)"
+   },
+   {
+    "method": "GET",
+    "path": "/CenterWeb/api/{apiKey}/teamType/{id}.xml",
+    "description": "Get details of a specific team type by ID"
+   },
+   {
+    "method": "POST",
+    "path": "/CenterWeb/api/{apiKey}/teamType.xml",
+    "description": "Create a new team type",
+    "params": "description (required), alternativeIdentifier, active"
+   },
+   {
+    "method": "POST",
+    "path": "/CenterWeb/api/{apiKey}/teamType/{id}.xml",
+    "description": "Update an existing team type (partial payload allowed)",
+    "params": "alternativeIdentifier (required on update), description, active"
+   }
+  ],
+  "fields": "id: Integer (auto-generated system identifier); description: String (required on creation); alternativeIdentifier: String (required for updates only); active: Boolean (optional status flag)",
+  "pagination": "Not documented on this page. List response envelope: <resourceName>, <size>, <entries>/<entry> with id and link attributes.",
+  "notes": "Updates accept partial payloads (only changed fields need to be sent). alternativeIdentifier is mandatory only during updates, not creation. Error codes, rate limits, and character escaping are not documented on this page.",
+  "additionalLinks": []
+ }
+]
