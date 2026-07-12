@@ -39,7 +39,7 @@ export function createActivityHistoriesResource(transport: Transport): ActivityH
       return parseDetailResponse<ActivityHistoryHierarchical>(xml, 'activityHistory')
     },
     async createForSchedule(scheduleRef, payload) {
-      const xml = serializeEntity('activityHistory', payload as Record<string, never>)
+      const xml = serializeEntity('activityHistory', payload)
       const res = parseWriteResponse(
         await transport.post(`schedule/${refToPath(scheduleRef)}/activityHistory.xml`, xml),
       )

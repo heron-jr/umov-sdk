@@ -6,7 +6,7 @@ const listXml = `<result><size>1</size><entries><entry id="3" link="/agent/1/cus
 const writeXml = `<result><resourceName>customField</resourceName><resourceId>3</resourceId></result>`
 
 function make(body: string) {
-  const fetchMock = vi.fn(async () => new Response(body, { status: 200 }))
+  const fetchMock = vi.fn(async (_url: string | URL) => new Response(body, { status: 200 }))
   const transport = new Transport({
     apiKey: 'k',
     requestsPerSecond: 1000,

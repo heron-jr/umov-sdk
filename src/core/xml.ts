@@ -49,8 +49,8 @@ function serializeNode(name: string, value: Serializable): string {
 }
 
 /** Serializa um payload de entidade para o XML aceito pela API. */
-export function serializeEntity(rootName: string, payload: Record<string, Serializable>): string {
-  return serializeNode(rootName, payload)
+export function serializeEntity(rootName: string, payload: Record<string, unknown>): string {
+  return serializeNode(rootName, payload as Serializable)
 }
 
 const parser = new XMLParser({

@@ -6,7 +6,7 @@ const hierXml = `<activityHistory><id>5</id><status>50</status><activity><id>2</
 const writeXml = `<result><resourceName>activityHistory</resourceName><resourceId>5</resourceId></result>`
 
 function make(body: string) {
-  const fetchMock = vi.fn(async () => new Response(body, { status: 200 }))
+  const fetchMock = vi.fn(async (_url: string | URL) => new Response(body, { status: 200 }))
   const transport = new Transport({
     apiKey: 'k',
     requestsPerSecond: 1000,

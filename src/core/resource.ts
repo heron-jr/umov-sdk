@@ -77,12 +77,12 @@ export function defineResource<TDetail, TCreate, TUpdate, TFilters extends Recor
     get,
     iterate,
     async create(payload: TCreate): Promise<{ id: number }> {
-      const xml = serializeEntity(rootName, payload as Record<string, never>)
+      const xml = serializeEntity(rootName, payload as Record<string, unknown>)
       const res = parseWriteResponse(await transport.post(`${path}.xml`, xml))
       return { id: res.id }
     },
     async update(ref: EntityRef, payload: TUpdate): Promise<void> {
-      const xml = serializeEntity(rootName, payload as Record<string, never>)
+      const xml = serializeEntity(rootName, payload as Record<string, unknown>)
       parseWriteResponse(await transport.post(`${path}/${refToPath(ref)}.xml`, xml))
     },
   }
