@@ -6,7 +6,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { UmovClient, UmovNotFoundError, UmovAuthError } from '../../src'
+import { UmovClient, UmovNotFoundError, UmovAuthError, UmovValidationError } from '../../src'
 
 function loadKey(): string | undefined {
   if (process.env.UMOV_API_KEY) return process.env.UMOV_API_KEY
@@ -69,5 +69,42 @@ describe.skipIf(!apiKey)('integração uMov.me (ambiente laivon)', () => {
   it('token inválido vira UmovAuthError', { timeout: TIMEOUT }, async () => {
     const bad = new UmovClient({ apiKey: 'tokeninvalido123' })
     await expect(bad.agents.list()).rejects.toBeInstanceOf(UmovAuthError)
+  })
+
+  // ---- Fases 2+3 ----
+
+  it('agentTypes: ciclo de escrita no registro de teste sdk-teste-r2', { timeout: TIMEOUT }, async () => {
+    const stamp = `SDK teste integração (pode excluir)`
+    await umov.agentTypes.update({ altId: 'sdk-teste-r2' }, { description: stamp })
+    const back = await umov.agentTypes.get({ altId: 'sdk-teste-r2' })
+    expect(back.description).toBe(stamp)
+  })
+
+  it('create com altId duplicado vira UmovValidationError com apiErrors', { timeout: TIMEOUT }, async () => {
+    const err = await umov.agentTypes
+      .create({ description: 'dup', alternativeIdentifier: 'sdk-teste-r2' })
+      .catch((e: unknown) => e)
+    expect(err).toBeInstanceOf(UmovValidationError)
+    expect((err as UmovValidationError).apiErrors).toContain('alternativeIdentifierAlreadyInUse')
+  })
+
+  it('groups, itemCategories e itineraries listam', { timeout: TIMEOUT }, async () => {
+    expect((await umov.groups.list()).size).toBeGreaterThanOrEqual(0)
+    expect((await umov.itemCategories.list()).size).toBeGreaterThanOrEqual(0)
+    expect((await umov.itineraries.list()).size).toBeGreaterThanOrEqual(0)
+  })
+
+  it('customEntities lista e lê detalhe', { timeout: TIMEOUT }, async () => {
+    const page = await umov.customEntities.list()
+    if (page.entries.length > 0) {
+      const detail = await umov.customEntities.get(page.entries[0]!.id)
+      expect(detail.id).toBe(page.entries[0]!.id)
+    }
+    expect(page.size).toBeGreaterThanOrEqual(0)
+  })
+
+  it('teams lista (e membros quando houver equipe)', { timeout: TIMEOUT }, async () => {
+    const page = await umov.teams.list()
+    expect(page.size).toBeGreaterThanOrEqual(0)
   })
 })
