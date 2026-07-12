@@ -14,6 +14,8 @@ npm install git+ssh://git@<host-privado>/laivon/umov-sdk.git
 import { UmovClient } from '@laivon/umov-sdk'
 
 const umov = new UmovClient({ apiKey: process.env.UMOV_API_KEY! })
+// ou por credenciais do Center (POST /token.xml):
+// const umov = await UmovClient.fromCredentials({ login, password, domain: 'laivon' })
 
 // Listagem auto-paginada com hidratação (resolve o N+1 da API)
 for await (const schedule of umov.schedules.iterate({ situation: 50 }, { hydrate: true })) {

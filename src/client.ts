@@ -50,7 +50,11 @@ import type {
   SubGroupUpdate,
 } from './resources/types'
 
+import { getToken, type TokenCredentials } from './core/token'
+
 export type UmovClientOptions = TransportOptions
+
+export type UmovClientCredentialsOptions = TokenCredentials & Omit<TransportOptions, 'apiKey'>
 
 /** Remove create/update da superfície pública de recursos somente leitura. */
 function readOnly<T extends { create: unknown; update: unknown }>(resource: T): Omit<T, 'create' | 'update'> {
@@ -59,6 +63,22 @@ function readOnly<T extends { create: unknown; update: unknown }>(resource: T): 
 }
 
 export class UmovClient {
+  /**
+   * Autentica com login/senha/domínio via POST /token.xml e retorna um cliente pronto.
+   * ATENÇÃO: regenerar o token no Center invalida integrações que usam o token recuperado.
+   */
+  static async fromCredentials(options: UmovClientCredentialsOptions): Promise<UmovClient> {
+    const { login, password, domain, ...transportOptions } = options
+    const apiKey = await getToken({
+      login,
+      password,
+      domain,
+      baseUrl: transportOptions.baseUrl,
+      fetch: transportOptions.fetch,
+    })
+    return new UmovClient({ ...transportOptions, apiKey })
+  }
+
   // Pessoas
   readonly agents
   readonly agentTypes
