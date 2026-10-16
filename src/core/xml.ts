@@ -5,6 +5,20 @@ export function encodeCustomFieldName(name: string): string {
   return name.replace(/ /g, '__')
 }
 
+/**
+ * Inverso de `encodeCustomFieldName`: reverte `__` para espaço. Uso opt-in — o SDK
+ * NÃO aplica isto em `parseXml` nem nos resources, então as respostas continuam
+ * trazendo a chave crua (`foo__bar`).
+ *
+ * Ambiguidade: um campo cujo nome real contém um `__` literal é indistinguível de
+ * um campo com espaço, pois a API devolve os dois como `__`. É limitação da API
+ * uMov, não do SDK, e é por isso que a decodificação não é automática: quem
+ * conhece os nomes do seu ambiente decide quando aplicá-la.
+ */
+export function decodeCustomFieldName(name: string): string {
+  return name.replace(/__/g, ' ')
+}
+
 /** Codificação exigida dentro de CDATA: % → %25, & → %26. Ordem importa (% primeiro). */
 export function encodeText(value: string): string {
   return value.replace(/%/g, '%25').replace(/&/g, '%26')

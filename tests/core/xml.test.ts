@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { serializeEntity, parseXml, encodeCustomFieldName, decodeText } from '../../src/core/xml'
+import {
+  serializeEntity,
+  parseXml,
+  encodeCustomFieldName,
+  decodeCustomFieldName,
+  decodeText,
+} from '../../src/core/xml'
 
 describe('serializeEntity', () => {
   it('serializa objeto plano', () => {
@@ -84,5 +90,26 @@ describe('encodeCustomFieldName', () => {
 describe('decodeText', () => {
   it('reverte a codificação de request', () => {
     expect(decodeText('100%25 %26 fim')).toBe('100% & fim')
+  })
+})
+
+describe('decodeCustomFieldName', () => {
+  it('faz round-trip de encode e decode', () => {
+    expect(decodeCustomFieldName(encodeCustomFieldName('foo bar'))).toBe('foo bar')
+  })
+
+  it('é inverso puro do encode para nomes sem __ literal', () => {
+    for (const name of ['simples', 'numero da nota fiscal', 'a b  c', ' borda ']) {
+      expect(decodeCustomFieldName(encodeCustomFieldName(name))).toBe(name)
+    }
+  })
+
+  it('parseXml continua devolvendo a chave crua com __ (decode é opt-in)', () => {
+    const obj = parseXml('<customFields><numero__da__nota>42</numero__da__nota></customFields>')
+    expect(obj).toEqual({ customFields: { numero__da__nota: '42' } })
+    const campos = obj.customFields
+    expect(typeof campos === 'object' && campos !== null ? Object.keys(campos).map(decodeCustomFieldName) : []).toEqual([
+      'numero da nota',
+    ])
   })
 })
