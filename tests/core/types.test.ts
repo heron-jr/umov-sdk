@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, expectTypeOf, it } from 'vitest'
 import { refToPath } from '../../src/core/types'
+import type { ScheduleFilters } from '../../src/resources/types'
 
 describe('refToPath', () => {
   it('number vira path por id', () => {
@@ -16,5 +17,26 @@ describe('refToPath', () => {
   })
   it('encoda caracteres especiais no altId', () => {
     expect(refToPath({ altId: 'OS 12/3' })).toBe('alternativeIdentifier/OS%2012%2F3')
+  })
+})
+
+describe('ScheduleFilters', () => {
+  it('aceita os filtros de uso real em produção', () => {
+    const filtros = {
+      'scheduleType.alternativeIdentifier': 'FUNERAL',
+      initialExecutionDate: new Date('2026-10-14T00:00:00'),
+      finalExecutionDate: '2026-10-15 00:00:00',
+      active: true,
+      alternativeIdentifier: 'OS-1',
+    } satisfies ScheduleFilters
+    expect(Object.keys(filtros)).toHaveLength(5)
+  })
+
+  it('tipa as chaves de fato (sem cair no index signature unknown)', () => {
+    expectTypeOf<ScheduleFilters['scheduleType.alternativeIdentifier']>().toEqualTypeOf<string | undefined>()
+    expectTypeOf<ScheduleFilters['initialExecutionDate']>().toEqualTypeOf<Date | string | undefined>()
+    expectTypeOf<ScheduleFilters['finalExecutionDate']>().toEqualTypeOf<Date | string | undefined>()
+    expectTypeOf<ScheduleFilters['active']>().toEqualTypeOf<boolean | undefined>()
+    expectTypeOf<ScheduleFilters['alternativeIdentifier']>().toEqualTypeOf<string | undefined>()
   })
 })

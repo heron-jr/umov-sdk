@@ -130,7 +130,14 @@ export interface ScheduleFilters {
   'situation.description'?: string
   initialInsertDateTime?: Date | string
   finalInsertDateTime?: Date | string
+  'scheduleType.alternativeIdentifier'?: string
+  initialExecutionDate?: Date | string
+  finalExecutionDate?: Date | string
+  active?: boolean
+  alternativeIdentifier?: string
   raw?: Record<string, string>
+  // Filtrar pelo valor de um custom field também é suportado e passa pelo index signature,
+  // pois os nomes dos campos são específicos de cada ambiente.
   [key: string]: unknown
 }
 
