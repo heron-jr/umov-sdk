@@ -69,6 +69,21 @@ Todos os recursos vivem em `new UmovClient({ apiKey })`. Operações padrão (qu
 | `customEntities.entries(entityRef)` | L·G·C·U·B(100) | batch exige entidade por altId |
 | `mix` | `types()` / `mixes()` / `items()` / `itemsOfMix(id)` | custom entities descobertas por `structuralFunction=mix` e cacheadas |
 
+### Custom fields: o que `customFields` envia
+
+Vale para `customFields` em qualquer payload (agents, schedules, serviceLocals...) e para `customFields.of(...).setValues`.
+
+| Valor no objeto | O que vai no XML |
+|---|---|
+| `null` / `undefined` | **omitido** — o campo não é enviado e o valor existente permanece |
+| `''` (string vazia) | **enviado** como `<campo></campo>` e **limpa** o campo |
+| array (`['0', '1']`) | unido por pipe: `<campo>0\|1</campo>` |
+| número / boolean | convertido com `String(...)` |
+
+Atenção ao campo **multi-valor**: a API uMov **substitui** os valores existentes, não acrescenta. Enviar `''` (ou um array vazio, que vira `''`) apaga todos os valores do campo; enviar `['2']` deixa apenas `2`, descartando o que havia. Por isso um `''` vindo de um formulário ou de um mapeamento descuidado é destrutivo.
+
+O SDK mantém `''` sendo enviado de propósito, porque limpar um campo é um uso legítimo. Quem quer "não mexer" deve passar `null`/`undefined` (ou não incluir a chave), nunca `''`.
+
 ## Mensageria
 
 | Recurso | Operações | Notas |
