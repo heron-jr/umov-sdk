@@ -99,6 +99,30 @@ describe('customEntities.entries', () => {
     expect(url).toContain('/batch/customEntity/alternativeIdentifier/CAD-1/customEntityEntries.xml')
     expect(body).toContain('<customEntityEntries><customEntityEntry>')
   })
+
+  describe('iterate', () => {
+    const entryListXml = `<result><size>1</size><entries><entry id="77" link="/customEntityEntry/77.xml"/></entries></result>`
+    const detail = `<customEntityEntry><id>77</id><description>Reg</description></customEntityEntry>`
+    const route = (u: string) => (u.includes('customEntityEntry/77.xml') ? detail : entryListXml)
+
+    it('sem hydrate rende stubs e para na página incompleta', async () => {
+      const { transport, fetchMock } = makeTransport(route)
+      const ce = createCustomEntitiesResource(transport)
+      const out = []
+      for await (const stub of ce.entries(5).iterate()) out.push(stub)
+      expect(out).toEqual([{ id: 77, link: '/customEntityEntry/77.xml' }])
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+    })
+
+    it('com hydrate rende entries completas via get', async () => {
+      const { transport, fetchMock } = makeTransport(route)
+      const ce = createCustomEntitiesResource(transport)
+      const out = []
+      for await (const entry of ce.entries(5).iterate({}, { hydrate: true })) out.push(entry)
+      expect(out).toEqual([{ id: 77, description: 'Reg' }])
+      expect(call(fetchMock, 1).url).toContain('/customEntity/5/customEntityEntry/77.xml')
+    })
+  })
 })
 
 describe('schedules — normalização de Date', () => {

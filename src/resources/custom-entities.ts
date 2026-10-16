@@ -1,4 +1,12 @@
-import { defineBatch, defineResource, filtersToQuery, type BatchOptions, type ListOptions } from '../core/resource'
+import {
+  defineBatch,
+  defineResource,
+  filtersToQuery,
+  type BatchOptions,
+  type IterateOptions,
+  type ListOptions,
+} from '../core/resource'
+import { hydrateStubs, iterateStubs } from '../core/pagination'
 import { parseDetailResponse, parseListResponse, parseWriteResponse } from '../core/envelope'
 import { serializeEntity } from '../core/xml'
 import { refToPath, type EntityRef, type ListPage, type ListStub } from '../core/types'
@@ -14,6 +22,12 @@ import type {
 
 export interface CustomEntityEntriesResource {
   list(filters?: SimpleEntityFilters, opts?: ListOptions): Promise<ListPage>
+  /**
+   * Auto-paginação (página 1 até a primeira página incompleta). Sem `hydrate` rende stubs;
+   * com `{ hydrate: true }` rende as entries completas, buscando cada uma via `get`.
+   */
+  iterate(filters: SimpleEntityFilters | undefined, opts: IterateOptions & { hydrate: true }): AsyncGenerator<SimpleEntity>
+  iterate(filters?: SimpleEntityFilters, opts?: IterateOptions): AsyncGenerator<ListStub>
   get(entryRef: EntityRef): Promise<SimpleEntity>
   create(payload: CustomEntityEntryCreate): Promise<{ id: number }>
   update(entryRef: EntityRef, payload: CustomEntityEntryUpdate): Promise<void>
@@ -39,18 +53,35 @@ export function createCustomEntitiesResource(transport: Transport): CustomEntiti
     get: base.get,
     entries(entityRef) {
       const entityPath = `customEntity/${refToPath(entityRef)}`
+      const list = async (filters?: SimpleEntityFilters, opts?: ListOptions): Promise<ListPage> => {
+        const query = filtersToQuery(filters ?? {})
+        if (opts?.page !== undefined) query['paging.page'] = String(opts.page)
+        return parseListResponse(await transport.get(`${entityPath}/customEntityEntry.xml`, query))
+      }
+      const get = async (entryRef: EntityRef): Promise<SimpleEntity> =>
+        parseDetailResponse<SimpleEntity>(
+          await transport.get(`${entityPath}/customEntityEntry/${refToPath(entryRef)}.xml`),
+          'customEntityEntry',
+        )
+
+      function iterate(
+        filters: SimpleEntityFilters | undefined,
+        opts: IterateOptions & { hydrate: true },
+      ): AsyncGenerator<SimpleEntity>
+      function iterate(filters?: SimpleEntityFilters, opts?: IterateOptions): AsyncGenerator<ListStub>
+      function iterate(
+        filters?: SimpleEntityFilters,
+        opts?: IterateOptions,
+      ): AsyncGenerator<SimpleEntity> | AsyncGenerator<ListStub> {
+        const stubs = iterateStubs((page) => list(filters, { page }))
+        if (opts?.hydrate) return hydrateStubs(stubs, (id) => get(id), opts.prefetch)
+        return stubs
+      }
+
       return {
-        async list(filters, opts) {
-          const query = filtersToQuery(filters ?? {})
-          if (opts?.page !== undefined) query['paging.page'] = String(opts.page)
-          return parseListResponse(await transport.get(`${entityPath}/customEntityEntry.xml`, query))
-        },
-        async get(entryRef) {
-          return parseDetailResponse<SimpleEntity>(
-            await transport.get(`${entityPath}/customEntityEntry/${refToPath(entryRef)}.xml`),
-            'customEntityEntry',
-          )
-        },
+        list,
+        get,
+        iterate,
         async create(payload) {
           const xml = serializeEntity('customEntityEntry', payload as unknown as Record<string, unknown>)
           const res = parseWriteResponse(await transport.post(`${entityPath}/customEntityEntry.xml`, xml))
