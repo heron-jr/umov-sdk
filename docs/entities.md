@@ -122,3 +122,27 @@ Validado contra a API real: POST /token.xml com `<apiToken><login/><password/><d
 - `teams.getMember`: a API responde com raiz `<team>` (o time com o bloco `agentRelationship` do membro).
 - `TeamCreate.teamType`: a relação só resolve por **id interno** — altId retorna `nonExistingId`.
 - Sub-paths de membro (`team/{id}/agent...`) só aceitam **id interno do time** — a forma `alternativeIdentifier/` retorna 404; por isso a assinatura exige id numérico.
+
+## Escape e serialização de XML (`src/core/xml.ts`)
+
+O SDK monta e lê o XML por você — esta é a principal razão para não montar o corpo à mão. O que ele realmente faz:
+
+**Escrita (`serializeEntity`)**
+
+- **CDATA**: um valor `string` é envolvido em `<![CDATA[...]]>` quando contém qualquer um de `<` `>` `&` `%` `\n` `\r` (regex `NEEDS_CDATA`). Strings sem esses caracteres, números e booleans vão como texto puro (`String(valor)`). Aspas, apóstrofos e acentos não disparam CDATA.
+- **Percent-escape dentro do CDATA**: só o conteúdo que vai em CDATA é transformado, com `%` → `%25` **e depois** `&` → `%26`. A ordem importa: se `&` fosse trocado primeiro, o `%` do `%26` recém-criado seria trocado de novo e `&` viraria `%2526`, que a leitura não consegue reverter corretamente. `<` e `>` ficam literais (o CDATA os protege).
+- **Divisão de `]]>`**: a sequência `]]>` fecharia o CDATA antes da hora. Ela é partida em seções adjacentes (`]]` + `>`), então `a]]>b` vira `<![CDATA[a]]]]><![CDATA[>b]]>`.
+- **Arrays**: fora de `customFields`, um array repete o elemento (`tags: ['a','b']` → `<tags>a</tags><tags>b</tags>`). Dentro de `customFields`, um array vira **uma** tag com valores unidos por pipe (`['0','1']` → `<campo>0|1</campo>`).
+- **Nomes de custom fields**: apenas as chaves de `customFields` são transformadas, com espaço → `__` (`'numero da nota'` → `numero__da__nota`). Chaves de outros objetos são escritas como estão. A volta (`__` → espaço) não é automática; existe `decodeCustomFieldName` para uso opt-in, e há uma ambiguidade documentada na função (um `__` literal no nome real é indistinguível de um espaço).
+- `null` e `undefined` são omitidos (ver "Custom fields: o que `customFields` envia" acima para o caso de `''`).
+
+**Leitura (`parseXml`)**
+
+- Todos os valores permanecem `string` (sem coerção numérica ou booleana) e atributos ganham o prefixo `$` (`$id`, `$link`).
+- `decodeText` é aplicado simetricamente em toda string da resposta, na ordem inversa da escrita: `%26` → `&` e depois `%25` → `%`. Chaves não são decodificadas — por isso `parseXml` continua devolvendo `foo__bar` para custom fields.
+
+**Query string (filtros): passe o valor cru**
+
+Os valores de filtro são encodados pelo transport (`encodeURIComponent`: espaço → `%20`, `:` → `%3A`), e o corpo de escrita também é encodado ao ir como `data=`. Portanto passe sempre o valor **cru**: `'2026-10-14 00:00:00'`, nunca `'2026-10-14%2000:00:00'`. Um valor já encodado é encodado de novo (`%20` → `%2520`) e a API responde **HTTP 200 com lista vazia**, sem nenhum erro — falha silenciosa que leva a concluir que não há registros.
+
+Desde `04a0056` o transport detecta a assinatura `%` + dois dígitos hex em valores de query e emite um aviso (`type: 'warning'` no logger, ou `console.warn` se não houver logger), uma vez por chave por instância. Um `%` solto (`'50% off'`) não casa e não gera aviso.
