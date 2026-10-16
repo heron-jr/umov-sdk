@@ -2,11 +2,32 @@ import { errorFromStatus, UmovApiError } from './errors'
 import { RateLimiter } from './rate-limit'
 
 export interface UmovLogEvent {
-  type: 'request' | 'retry' | 'error'
+  type: 'request' | 'retry' | 'error' | 'warning'
   method: string
   url: string // sempre redigida
   status?: number
   attempt?: number
+  /** Apenas em 'warning': o que está errado na chamada. */
+  message?: string
+}
+
+/**
+ * Assinatura de valor já percent-encodado: '%' seguido de dois dígitos hex.
+ *
+ * Existe por causa de um modo de falha silencioso: quem migra de código que montava a query
+ * string à mão passa valores já encodados ('2026-10-14%2000:00:00'). Como buildUrl encoda,
+ * o '%' vira '%25' e a API recebe '%2520' — devolvendo lista VAZIA, com HTTP 200 e sem erro.
+ * O consumidor conclui que não há registros.
+ *
+ * Um '%' solto ('50% off') não casa, então não gera falso positivo.
+ */
+const PRE_ENCODED = /%[0-9A-Fa-f]{2}/
+
+function preEncodedKeys(query?: Record<string, string>): string[] {
+  if (!query) return []
+  return Object.entries(query)
+    .filter(([, value]) => PRE_ENCODED.test(value))
+    .map(([key]) => key)
 }
 
 export interface TransportOptions {
@@ -34,6 +55,8 @@ export class Transport {
   private readonly fetchImpl: typeof fetch
   private readonly logger?: (event: UmovLogEvent) => void
   private readonly limiter: RateLimiter
+  /** Chaves já avisadas, para não repetir o aviso de pré-encode a cada requisição. */
+  private readonly warnedPreEncoded = new Set<string>()
 
   constructor(opts: TransportOptions) {
     this.apiKey = opts.apiKey
@@ -64,6 +87,29 @@ export class Transport {
     return url.split(this.apiKey).join('***')
   }
 
+  /**
+   * Avisa quando um valor de query chega já percent-encodado — o SDK encoda, então o valor
+   * dobra e a API devolve lista vazia sem erro (ver PRE_ENCODED).
+   *
+   * Cai em console.warn quando não há logger: o modo de falha é silencioso, e um aviso que
+   * depende de configuração opcional não resolveria o problema. Avisa uma vez por chave, por
+   * instância, para não poluir log de worker que roda em laço.
+   */
+  private warnPreEncoded(method: string, redacted: string, query?: Record<string, string>): void {
+    const keys = preEncodedKeys(query).filter((key) => !this.warnedPreEncoded.has(key))
+    if (keys.length === 0) return
+
+    for (const key of keys) this.warnedPreEncoded.add(key)
+
+    const message =
+      `valor de query já percent-encodado em: ${keys.join(', ')}. ` +
+      `Passe o valor cru — o SDK encoda. Use '2026-10-14 00:00:00', não '2026-10-14%2000:00:00'. ` +
+      `Encodado duas vezes, a API responde 200 com lista vazia.`
+
+    if (this.logger) this.logger({ type: 'warning', method, url: redacted, message })
+    else console.warn(`[umov-sdk] ${message}`)
+  }
+
   private async request(
     method: 'GET' | 'POST' | 'DELETE',
     path: string,
@@ -72,6 +118,7 @@ export class Transport {
   ): Promise<string> {
     const url = this.buildUrl(path, query)
     const redacted = this.redact(url)
+    this.warnPreEncoded(method, redacted, query)
     const init: RequestInit = { method }
     if (body !== undefined) {
       init.headers = { 'Content-Type': 'application/x-www-form-urlencoded' }

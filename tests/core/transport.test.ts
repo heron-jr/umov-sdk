@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Transport } from '../../src/core/transport'
 import { UmovApiError, UmovAuthError, UmovRateLimitError } from '../../src/core/errors'
+import type { UmovLogEvent } from '../../src/core/transport'
 
 const API_KEY = 'a1b2c3d4e5f6a1b2c3d4'
 
@@ -160,5 +161,68 @@ describe('Transport — Retry-After', () => {
     const t = makeTransport(fetchMock as unknown as typeof fetch, { retryBaseMs: 1, maxRetryDelayMs: 20 })
     await expect(t.get('agent.xml')).resolves.toBe('<result/>') // sem cap levaria 120s e estouraria o timeout do teste
     expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('Transport — aviso de query pré-encodada', () => {
+  const log = (events: UmovLogEvent[]) => (e: UmovLogEvent) => void events.push(e)
+
+  it('avisa pelo logger quando o valor chega percent-encodado', async () => {
+    const events: UmovLogEvent[] = []
+    const fetchMock = vi.fn(async () => ok('<result/>'))
+    const t = makeTransport(fetchMock as unknown as typeof fetch, { logger: log(events) })
+
+    await t.get('schedule.xml', { initialInsertDateTime: '2026-10-14%2000:00:00' })
+
+    const warning = events.find((e) => e.type === 'warning')
+    expect(warning).toBeDefined()
+    expect(warning!.message).toContain('initialInsertDateTime')
+    expect(warning!.url).not.toContain(API_KEY)
+  })
+
+  it('cai em console.warn quando não há logger configurado', async () => {
+    const spy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const fetchMock = vi.fn(async () => ok('<result/>'))
+    const t = makeTransport(fetchMock as unknown as typeof fetch)
+
+    await t.get('schedule.xml', { finalExecutionDate: '2026-10-14%2023:59:59' })
+
+    expect(spy).toHaveBeenCalledTimes(1)
+    expect(String(spy.mock.calls[0]![0])).toContain('finalExecutionDate')
+    spy.mockRestore()
+  })
+
+  it('não avisa para % solto — sem falso positivo', async () => {
+    const events: UmovLogEvent[] = []
+    const fetchMock = vi.fn(async () => ok('<result/>'))
+    const t = makeTransport(fetchMock as unknown as typeof fetch, { logger: log(events) })
+
+    await t.get('item.xml', { description: '50% de desconto', other: '100%' })
+
+    expect(events.some((e) => e.type === 'warning')).toBe(false)
+  })
+
+  it('avisa uma vez por chave, não a cada requisição', async () => {
+    const events: UmovLogEvent[] = []
+    const fetchMock = vi.fn(async () => ok('<result/>'))
+    const t = makeTransport(fetchMock as unknown as typeof fetch, { logger: log(events) })
+
+    await t.get('schedule.xml', { situation: '50', initialExecutionDate: '2026-10-14%2000:00:00' })
+    await t.get('schedule.xml', { situation: '50', initialExecutionDate: '2026-10-15%2000:00:00' })
+
+    expect(events.filter((e) => e.type === 'warning')).toHaveLength(1)
+  })
+
+  it('o valor cru equivalente não dispara aviso e encoda uma única vez', async () => {
+    const events: UmovLogEvent[] = []
+    const fetchMock = vi.fn(async () => ok('<result/>'))
+    const t = makeTransport(fetchMock as unknown as typeof fetch, { logger: log(events) })
+
+    await t.get('schedule.xml', { initialInsertDateTime: '2026-10-14 00:00:00' })
+
+    const [url] = fetchMock.mock.calls[0]! as unknown as [string]
+    expect(url).toContain('initialInsertDateTime=2026-10-14%2000%3A00%3A00')
+    expect(url).not.toContain('%2520')
+    expect(events.some((e) => e.type === 'warning')).toBe(false)
   })
 })
