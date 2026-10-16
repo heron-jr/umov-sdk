@@ -31,6 +31,38 @@ describe('customFields.of(...).list', () => {
   })
 })
 
+describe('customFields.of(...).iterate', () => {
+  const detailXml = `<customField><id>3</id><description>Regiões</description><value>Sul</value></customField>`
+
+  function makeRouted() {
+    const fetchMock = vi.fn(async (url: string | URL) =>
+      new Response(String(url).endsWith('/customField/3.xml') ? detailXml : listXml, { status: 200 }),
+    )
+    const transport = new Transport({
+      apiKey: 'k',
+      requestsPerSecond: 1000,
+      fetch: fetchMock as unknown as typeof fetch,
+    })
+    return { customFields: createCustomFieldsAccessor(transport), fetchMock }
+  }
+
+  it('sem hydrate rende stubs e não busca detalhe', async () => {
+    const { customFields, fetchMock } = makeRouted()
+    const out = []
+    for await (const stub of customFields.of('agent', 1).iterate()) out.push(stub)
+    expect(out).toEqual([{ id: 3, link: '/agent/1/customField/3.xml' }])
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('com hydrate rende campos completos via get', async () => {
+    const { customFields, fetchMock } = makeRouted()
+    const out = []
+    for await (const field of customFields.of('agent', 1).iterate({}, { hydrate: true })) out.push(field)
+    expect(out).toEqual([{ id: 3, description: 'Regiões', value: 'Sul' }])
+    expect(String(fetchMock.mock.calls[1]![0])).toContain('/agent/1/customField/3.xml')
+  })
+})
+
 describe('customFields.of(...).get', () => {
   it('lê um campo individual com valor', async () => {
     const detailXml = `<customField><id>3</id><description>Regiões</description><value>Sul</value></customField>`

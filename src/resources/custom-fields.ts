@@ -1,7 +1,8 @@
 import { parseDetailResponse, parseListResponse } from '../core/envelope'
 import { serializeEntity } from '../core/xml'
-import { filtersToQuery } from '../core/resource'
-import { refToPath, type EntityRef, type ListPage } from '../core/types'
+import { filtersToQuery, type IterateOptions, type ListOptions } from '../core/resource'
+import { hydrateStubs, iterateStubs } from '../core/pagination'
+import { refToPath, type EntityRef, type ListPage, type ListStub } from '../core/types'
 import type { Transport } from '../core/transport'
 import type { CustomFieldEntry, CustomFieldValues } from './types'
 
@@ -27,7 +28,17 @@ export interface CustomFieldFilters {
 }
 
 export interface EntityCustomFields {
-  list(filters?: CustomFieldFilters): Promise<ListPage>
+  /**
+   * Lista APENAS stubs (`{ id, link }`): nome e valor do campo NÃO voltam na listagem.
+   * Para ler nome/valor use `get`, ou `iterate` com `{ hydrate: true }`.
+   */
+  list(filters?: CustomFieldFilters, opts?: ListOptions): Promise<ListPage>
+  /**
+   * Auto-paginação da listagem. Sem `hydrate` rende stubs; com `{ hydrate: true }` rende
+   * os campos completos (nome e valor), buscando cada um via `get`.
+   */
+  iterate(filters: CustomFieldFilters | undefined, opts: IterateOptions & { hydrate: true }): AsyncGenerator<CustomFieldEntry>
+  iterate(filters?: CustomFieldFilters, opts?: IterateOptions): AsyncGenerator<ListStub>
   /** Lê um custom field individual (valor incluído) por id ou altId do campo. */
   get(fieldRef: EntityRef): Promise<CustomFieldEntry>
   /**
@@ -45,16 +56,35 @@ export function createCustomFieldsAccessor(transport: Transport): CustomFieldsAc
   return {
     of(entity, ref) {
       const entityPath = `${entity}/${refToPath(ref)}`
+      const list = async (filters?: CustomFieldFilters, opts?: ListOptions): Promise<ListPage> => {
+        const query = filtersToQuery(filters ?? {})
+        if (opts?.page !== undefined) query['paging.page'] = String(opts.page)
+        return parseListResponse(await transport.get(`${entityPath}/customField.xml`, query))
+      }
+      const get = async (fieldRef: EntityRef): Promise<CustomFieldEntry> =>
+        parseDetailResponse<CustomFieldEntry>(
+          await transport.get(`${entityPath}/customField/${refToPath(fieldRef)}.xml`),
+          'customField',
+        )
+
+      function iterate(
+        filters: CustomFieldFilters | undefined,
+        opts: IterateOptions & { hydrate: true },
+      ): AsyncGenerator<CustomFieldEntry>
+      function iterate(filters?: CustomFieldFilters, opts?: IterateOptions): AsyncGenerator<ListStub>
+      function iterate(
+        filters?: CustomFieldFilters,
+        opts?: IterateOptions,
+      ): AsyncGenerator<CustomFieldEntry> | AsyncGenerator<ListStub> {
+        const stubs = iterateStubs((page) => list(filters, { page }))
+        if (opts?.hydrate) return hydrateStubs(stubs, (id) => get(id), opts.prefetch)
+        return stubs
+      }
+
       return {
-        async list(filters) {
-          return parseListResponse(await transport.get(`${entityPath}/customField.xml`, filtersToQuery(filters ?? {})))
-        },
-        async get(fieldRef) {
-          return parseDetailResponse<CustomFieldEntry>(
-            await transport.get(`${entityPath}/customField/${refToPath(fieldRef)}.xml`),
-            'customField',
-          )
-        },
+        list,
+        get,
+        iterate,
         async setValues(values) {
           await transport.post(`${entityPath}/customField.xml`, serializeEntity('customFields', values))
         },
