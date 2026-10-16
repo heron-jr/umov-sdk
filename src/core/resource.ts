@@ -94,6 +94,11 @@ export interface Resource<TDetail, TCreate, TUpdate, TFilters> {
   list(filters?: TFilters, opts?: ListOptions): Promise<ListPage>
   iterate(filters: TFilters | undefined, opts: IterateOptions & { hydrate: true }): AsyncGenerator<TDetail>
   iterate(filters?: TFilters, opts?: IterateOptions): AsyncGenerator<ListStub>
+  /**
+   * Existe algum registro que case com os filtros? Faz UMA requisição (primeira página do list)
+   * e nunca pagina além dela — evita iterar só para checar `length > 0`.
+   */
+  exists(filters?: TFilters): Promise<boolean>
   get(ref: EntityRef): Promise<TDetail>
   create(payload: TCreate): Promise<{ id: number }>
   update(ref: EntityRef, payload: TUpdate): Promise<void>
@@ -130,6 +135,10 @@ export function defineResource<TDetail, TCreate, TUpdate, TFilters extends Recor
     list,
     get,
     iterate,
+    async exists(filters?: TFilters): Promise<boolean> {
+      const { entries } = await list(filters)
+      return entries.length > 0
+    },
     async create(payload: TCreate): Promise<{ id: number }> {
       const xml = serializeEntity(rootName, payload as Record<string, unknown>)
       const res = parseWriteResponse(await transport.post(`${path}.xml`, xml))

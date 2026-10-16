@@ -125,4 +125,28 @@ describe('defineResource', () => {
     expect(secondUrl).toContain('active=true')
     expect(secondUrl).toContain('paging.page=2')
   })
+
+  describe('exists', () => {
+    it('true quando a primeira página tem entries', async () => {
+      const { resource, fetchMock } = makeResource({ 'widget.xml': listXml })
+      await expect(resource.exists({ active: true })).resolves.toBe(true)
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+      expect(String(fetchMock.mock.calls[0]![0])).toContain('active=true')
+    })
+
+    it('false quando a primeira página vem vazia', async () => {
+      const { resource, fetchMock } = makeResource({ 'widget.xml': `<result><size>0</size></result>` })
+      await expect(resource.exists()).resolves.toBe(false)
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+    })
+
+    it('não pagina além da primeira página, mesmo com página cheia', async () => {
+      const entries100 = Array.from({ length: 100 }, (_, i) => `<entry id="${i + 1}" link="/widget/${i + 1}.xml"/>`).join('')
+      const { resource, fetchMock } = makeResource({
+        'widget.xml': `<result><size>100</size><entries>${entries100}</entries></result>`,
+      })
+      await expect(resource.exists()).resolves.toBe(true)
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+    })
+  })
 })
