@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { parseV2Envelope, TransportV2 } from '../../src/v2/transport'
 import { UmovAuthError, UmovNotFoundError, UmovRateLimitError, UmovValidationError } from '../../src/core/errors'
 
-const APP_KEY = 'c055666b-21f8-44d7-222e-5d564a8788c'
+const APP_KEY = '00000000-0000-4000-8000-000000000000'
 
 function makeTransport(fetchImpl: typeof fetch, extra: Record<string, unknown> = {}) {
   return new TransportV2({

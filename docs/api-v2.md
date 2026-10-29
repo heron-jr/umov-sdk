@@ -23,7 +23,7 @@ Consolidado em 2026-10-29. Também lidos: API Routing, Autenticação integrada 
 ## 2. Autenticação
 
 - `AppId`: inteiro, único por ambiente (ex.: `2`).
-- `AppKey`: UUID-like (ex.: `c055666b-21f8-44d7-222e-5d564a8788c`). A doc diz "token expirável", mas **não há endpoint de
+- `AppKey`: UUID-like (ex.: `00000000-0000-4000-8000-000000000000`). A doc diz "token expirável", mas **não há endpoint de
   renovação nem campo de validade** na spec — hoje criação/expiração é manual via suporte uMov.me. Tratar como
   credencial estática; 401 (`ApiUnauthorizedResponse`) = chave inválida/expirada → regenerar via suporte.
 - Não há `securityDefinitions` na spec: os dois headers aparecem como parâmetros obrigatórios em todas as 302 operações.
