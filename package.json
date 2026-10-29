@@ -1,6 +1,6 @@
 {
   "name": "@laivon/umov-sdk",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "SDK TypeScript para a API CenterWeb da uMov.me",
   "license": "UNLICENSED",
   "repository": {
