@@ -104,6 +104,13 @@ export interface V2LocalAddress {
   processGeocoordinate?: boolean
 }
 
+/** `ServiceLocalRelationDTO` — corpo opcional do vínculo roteiro/programação × local (horas em HH:mm). */
+export interface V2ServiceLocalRelation {
+  treatmentOrder?: number
+  initialHour?: string
+  finalHour?: string
+}
+
 /** Entidades que aceitam custom fields e tags na v2 (`/customField/entity/{entityName}`). */
 export type V2CustomFieldEntity =
   | 'AGENT'

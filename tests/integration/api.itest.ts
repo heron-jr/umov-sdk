@@ -18,7 +18,7 @@ function loadKey(): string | undefined {
 const apiKey = loadKey()
 const TIMEOUT = 60_000
 
-describe.skipIf(!apiKey)('integração uMov.me (ambiente laivon)', () => {
+describe.skipIf(!apiKey)('integração uMov.me (ambiente configurado)', () => {
   const umov = new UmovClient({ apiKey: apiKey ?? '' })
 
   it('lista agents e hidrata o primeiro', { timeout: TIMEOUT }, async () => {
@@ -31,7 +31,7 @@ describe.skipIf(!apiKey)('integração uMov.me (ambiente laivon)', () => {
   })
 
   it('auto-paginação para corretamente em entidade com >100 registros', { timeout: TIMEOUT * 3 }, async () => {
-    // serviceLocal tem >200 registros no ambiente laivon; consome só o suficiente para cruzar a página 2
+    // serviceLocal tem >200 registros no ambiente de validação; consome só o suficiente para cruzar a página 2
     const ids: number[] = []
     for await (const stub of umov.serviceLocals.iterate()) {
       ids.push(stub.id)

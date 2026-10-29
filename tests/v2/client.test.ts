@@ -38,6 +38,31 @@ describe('UmovClient + v2', () => {
     expect(logger).toHaveBeenCalledWith(expect.objectContaining({ type: 'request', method: 'POST' }))
   })
 
+  it('expõe todos os recursos v2', () => {
+    const v2 = new UmovV2Client({ appId: 1, appKey: 'ak' })
+    for (const r of [
+      'agents', 'agentTypes', 'absences', 'workJourneys', 'workDayJourneys', 'passwordPolicies', 'teams',
+      'items', 'subGroups', 'additionalInfoItems',
+      'locals', 'localTypes', 'localGroups', 'localClassifications', 'tags',
+      'tasks', 'taskTypes', 'taskSchedules', 'geocoordinates',
+      'activities', 'activityTypes', 'formulas',
+      'customEntities', 'customEntityEntries', 'customFields',
+      'itineraries', 'media', 'systemParameters', 'appearances', 'featureToggles',
+    ] as const) {
+      expect(v2[r], r).toBeDefined()
+    }
+  })
+
+  it('umov.v2.agents.create bate no host v2 com headers', async () => {
+    const f = fetchMock()
+    const umov = new UmovClient({ v2: { appId: 1, appKey: 'ak', requestsPerSecond: 1000 }, fetch: f as unknown as typeof fetch })
+    const res = await umov.v2.agents.create({ name: 'x' })
+    expect(res.id).toBe(1)
+    const [url, init] = f.mock.calls[0]!
+    expect(String(url)).toBe('https://api.umov.me/v2/agents')
+    expect((init!.headers as Record<string, string>).AppKey).toBe('ak')
+  })
+
   it('UmovV2Client avulso exige appId e appKey', () => {
     expect(() => new UmovV2Client({ appId: '', appKey: 'x' })).toThrow(UmovConfigError)
     expect(() => new UmovV2Client({ appId: 1, appKey: '' })).toThrow(UmovConfigError)
