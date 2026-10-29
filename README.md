@@ -19,7 +19,7 @@ import { UmovClient } from '@laivon/umov-sdk'
 
 const umov = new UmovClient({ apiKey: process.env.UMOV_API_KEY! })
 // ou por credenciais do Center (POST /token.xml):
-// const umov = await UmovClient.fromCredentials({ login, password, domain: 'laivon' })
+// const umov = await UmovClient.fromCredentials({ login, password, domain: 'seu-ambiente' })
 
 // Listagem auto-paginada com hidratação (resolve o N+1 da API)
 for await (const schedule of umov.schedules.iterate({ situation: 50 }, { hydrate: true })) {
@@ -67,13 +67,45 @@ const { activityHistoryIds } = parseCallbackXml(body)
 const laudo = await umov.activityHistories.hierarchical(activityHistoryIds[0])
 ```
 
+## API 2.0 (JSON)
+
+A uMov.me tem uma segunda API, JSON, autenticada por headers `AppId`/`AppKey` (pedidas ao suporte). Ela é **só escrita** — não existe GET — então o uso natural é **ler pela v1 e escrever pela v2**. O SDK expõe as 302 operações em `umov.v2.*`; quem usa só a v1 não precisa mudar nada.
+
+```ts
+new UmovClient({ apiKey })                               // só v1 (como sempre)
+new UmovClient({ v2: { appId: 2, appKey: '…' } })        // só v2
+new UmovClient({ apiKey, v2: { appId: 2, appKey: '…' } }) // as duas no mesmo cliente
+const v2 = new UmovV2Client({ appId: 2, appKey: '…' })   // cliente v2 avulso
+
+// Escrita: create → POST, put → PUT (total), patch → PATCH (parcial), remove → DELETE
+const { id } = await umov.v2.agents.create({ name: 'Ana', login: 'ana', agentType: { alternativeIdentifier: 'TEC' } })
+await umov.v2.tasks.patch({ altId: 'OS-123' }, { priority: 0 })
+await umov.v2.tasks.activities.add({ altId: 'OS-123' }, { altId: 'VISTORIA' }) // refs do mesmo tipo nos dois lados
+await umov.v2.tasks.transfer({ taskAlternativeIdentifiers: ['OS-123'], destinationAgentAlternativeIdentifier: 'TEC-042' })
+
+// Custom fields na v2 são um array; converta o estilo v1 com o helper
+await umov.v2.locals.patch('LOJA-9', { customFields: customFieldsFromMap({ regiao: 'sul', tags: ['a', 'b'] }) })
+
+// Erros trazem as chaves estáveis da v2
+try { await umov.v2.agents.create({ name: 'x', webUser: true }) }
+catch (e) { if (e instanceof UmovValidationError && e.hasKey('field_required')) console.log(e.keys) }
+```
+
+- Mesmas classes de erro da v1 (`UmovValidationError` 400, `UmovAuthError` 401, …); `e.messages` / `e.keys` / `e.hasKey('prefixo')` só vêm preenchidos na v2.
+- Rate limit, retry em 429 (e em 504/rede só para PUT/PATCH/DELETE — POST nunca é retentado) e redação da `AppKey` em logs, como na v1.
+- Campos `yyyy-MM-dd` aceitam `Date`; os demais formatos (`HH:mm`, `HHmmss`, ISO) são `string`.
+- `umov.v2.transport.post/put/patch/delete(path, body)` para qualquer rota que ainda não tenha wrapper.
+- Referência completa: [docs/api-v2.md](docs/api-v2.md) (conhecimento consolidado da API) e [docs/entities.md](docs/entities.md#api-20-json) (mapa dos recursos).
+
 ## Testes de integração
 
-Bateria real contra o ambiente configurado em `.env` (`UMOV_API_KEY`), validada contra o ambiente laivon:
+Bateria real contra o ambiente configurado em `.env` (`UMOV_API_KEY`), validada contra um ambiente real:
 
 ```bash
 npm run test:integration
 ```
+
+A bateria da v2 (`tests/integration/api-v2.itest.ts`) roda só se `UMOV_APP_ID` e `UMOV_APP_KEY` estiverem no env/`.env`.
 
 ## Comportamentos embutidos
 

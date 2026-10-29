@@ -99,6 +99,45 @@ O SDK mantém `''` sendo enviado de propósito, porque limpar um campo é um uso
 | `importLayouts` | L·G + `byEntity(entity)` | read-only |
 | `exportLayouts` | L·G | read-only |
 
+## API 2.0 (JSON)
+
+Recursos de **escrita** em `umov.v2.*` (ou `new UmovV2Client({ appId, appKey })`). A v2 não tem leitura — use os recursos v1 acima. Conhecimento da API: [api-v2.md](api-v2.md).
+
+Notação: C=`create` (POST) · U=`put` (PUT total) · P=`patch` (PATCH parcial) · D=`remove` (DELETE). `ref` aceita `id` ou `{ altId }` (`/alt-id/{altId}`); vínculos (`x.add/remove/patch(ref, subRef)`) exigem refs do **mesmo tipo** nos dois lados. `V2IdRef` = rota que só aceita id. Toda operação devolve `V2Result { code, id?, messages }`.
+
+| Recurso | Operações | Notas |
+|---|---|---|
+| `agents` | C U P · `activities.add/remove` | `accessRole` obrigatório se `webUser` |
+| `agentTypes` | C U P D | |
+| `absences` | C U P | `action` '0' ignora agenda / '1' transfere (`destinationAgent`) / '2' bloqueia login |
+| `workJourneys` | C P D · `workDays.create/put(altId, body)` · `workDays.remove(altId, 'MONDAY'…)` | dias só por altId da jornada |
+| `workDayJourneys` | C · P D (id) | |
+| `passwordPolicies` | C · U D (id) | todos os campos obrigatórios |
+| `teams` | C P · `agents.add/put/patch/remove` · `agents.addByAltId(teamAlt, body)` · `agents.removeAll(ref)` · `locals.add/remove` | por altId a rota do agente é `/team/alt-id/{t}/agent/{agentAlt}` (sem `alt-id/`) |
+| `items` | C · `upsert(body)` (PUT `/item`) · U P | |
+| `subGroups` | C U P | |
+| `additionalInfoItems` | C · U (id) | path `/aditional-info-items` |
+| `locals` | C U P · `activities.add/remove/patch` · `items.add/remove` · `items.patchCustomField(local, item, field, body)` · `tags.add/remove/patch` | SDK usa `/locals` (a spec também aceita `/local`) |
+| `localTypes` | C P D | `localFilter` obrigatório |
+| `localGroups`, `localClassifications` | D (id) | |
+| `tags` | C P | `entity` obrigatório |
+| `tasks` | C U P · `activities.add/remove/patch` · `items.add/put/remove/patch` · `history(cmd)` · `prioritize(items[])` · `recede(sel)` · `transfer(dto)` · `copy(body)` | situações 20/30/40/50/70; `teamExecutionId` obrigatório com `team`; datas `yyyy-MM-dd` aceitam `Date` |
+| `taskTypes` | C U P D · `activities.add/remove` · `activities.removeAll(ref)` · `linkActivity(body)` · `unlinkActivity(id)` | |
+| `taskSchedules` | C U P · `duplicate(ref, body)` · `activities/agents/teams.add/remove` · `serviceLocals.add/remove/patch` | programação recorrente de tarefas |
+| `geocoordinates` | C | `agentId`, `latitude`, `longitude` obrigatórios; `hour` em `HHmmss` |
+| `activities` | C P · `remove(altId)` · `copy` · `setDefault/unsetDefault` · `ancestors.replace/add/remove` · `impediments.*` · `sections.create/patch` · `sections.fields.create/patch` · `sections.items.add/remove` · `sections.subGroups.add/remove` | **escrita de formulários** (v1 só lê); paths irregulares documentados no módulo |
+| `activityTypes` | C P D | |
+| `formulas` | `value.create/patch/remove(tipo, …)` · `validation.*` | `/formulas/valor/{tipo}` e `/formulas/validacao/{tipo}` |
+| `customEntities` | C U P · `deleteAll({ customEntityAltIds })` | deleteAll só se o cadastro estiver vazio |
+| `customEntityEntries` | C · `upsert(body)` · U P D · `removeMixItem(mixId, itemId)` | |
+| `customFields` | `create(entity, body)` · `patch(entity, altId, body)` | `entity` ∈ AGENT, CUSTOM_ENTITY, ITEM, LOCAL_ACTIVITY, LOCAL_ITEM, SERVICE_LOCAL, TASK, TASK_ITEM |
+| `itineraries` | C U P D · `duplicate(body)` · `activities/agents/teams.add/remove` · `serviceLocals.add/remove/patch` | DELETE bloqueado se vinculado a programação |
+| `media` | `upload({ file, description?, type? })` (multipart) · `tags(body)` | |
+| `systemParameters`, `appearances` | `patch(body)` | parâmetros do ambiente / white label |
+| `featureToggles` | C · P(id) · `client/agent/global/partner.add/remove(...)` | administrativo |
+
+Fora do SDK: Routing API (`routingmachine.umov.me`, Bearer), Importer v2, Banco de Consulta.
+
 ## Webhook (import separado)
 
 ```ts
@@ -110,7 +149,7 @@ Parsers puros das duas variantes do callback de tarefas. Fluxo típico: callback
 ## Autenticação por credenciais
 
 ```ts
-const umov = await UmovClient.fromCredentials({ login, password, domain: 'laivon' })
+const umov = await UmovClient.fromCredentials({ login, password, domain: 'seu-ambiente' })
 // ou só o token: const token = await getToken({ login, password, domain })
 ```
 
