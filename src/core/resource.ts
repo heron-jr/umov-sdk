@@ -126,7 +126,7 @@ export function defineResource<TDetail, TCreate, TUpdate, TFilters extends Recor
     filters?: TFilters,
     opts?: IterateOptions,
   ): AsyncGenerator<TDetail> | AsyncGenerator<ListStub> {
-    const stubs = iterateStubs((page) => list(filters, { page }))
+    const stubs = iterateStubs((page) => list(filters, { page }), transport.pageSize)
     if (opts?.hydrate) return hydrateStubs(stubs, (id) => get(id), opts.prefetch)
     return stubs
   }

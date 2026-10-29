@@ -41,6 +41,11 @@ export interface TransportOptions {
   maxRetryDelayMs?: number
   fetch?: typeof fetch
   logger?: (event: UmovLogEvent) => void
+  /**
+   * Tamanho de página das listagens, conforme configurado no SEU ambiente uMov.me (25, 50 ou 100).
+   * Sem isso o SDK detecta automaticamente, ao custo de no máximo uma requisição extra por iteração.
+   */
+  pageSize?: 25 | 50 | 100
 }
 
 const sleep = (ms: number) => new Promise<void>((res) => setTimeout(res, ms))
@@ -55,6 +60,8 @@ export class Transport {
   private readonly fetchImpl: typeof fetch
   private readonly logger?: (event: UmovLogEvent) => void
   private readonly limiter: RateLimiter
+  /** Tamanho de página configurado (ver TransportOptions.pageSize); undefined = detecção automática. */
+  readonly pageSize?: number
   /** Chaves já avisadas, para não repetir o aviso de pré-encode a cada requisição. */
   private readonly warnedPreEncoded = new Set<string>()
 
@@ -68,6 +75,7 @@ export class Transport {
     this.fetchImpl = opts.fetch ?? globalThis.fetch
     this.logger = opts.logger
     this.limiter = new RateLimiter(opts.requestsPerSecond ?? 4)
+    this.pageSize = opts.pageSize
   }
 
   /** Query encodada manualmente: espaço→%20 e ':'→%3A (exigência da doc; URLSearchParams usaria '+'). */

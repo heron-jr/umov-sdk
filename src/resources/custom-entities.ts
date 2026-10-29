@@ -73,7 +73,7 @@ export function createCustomEntitiesResource(transport: Transport): CustomEntiti
         filters?: SimpleEntityFilters,
         opts?: IterateOptions,
       ): AsyncGenerator<SimpleEntity> | AsyncGenerator<ListStub> {
-        const stubs = iterateStubs((page) => list(filters, { page }))
+        const stubs = iterateStubs((page) => list(filters, { page }), transport.pageSize)
         if (opts?.hydrate) return hydrateStubs(stubs, (id) => get(id), opts.prefetch)
         return stubs
       }

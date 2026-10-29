@@ -110,6 +110,7 @@ A bateria da v2 (`tests/integration/api-v2.itest.ts`) roda só se `UMOV_APP_ID` 
 ## Comportamentos embutidos
 
 - **Rate limit**: 4 req/s (limite da uMov.me) com retry/backoff automático em 429 (respeita `Retry-After`); GETs também em 504.
+- **Paginação**: o tamanho de página é **configuração do seu ambiente** (25, 50 ou 100) e `<size>` na resposta é o tamanho da página, não o total. `iterate` detecta o fim automaticamente (no máximo uma requisição extra); informe `pageSize: 25 | 50 | 100` em `UmovClient` para eliminar essa requisição.
 - **Token seguro**: a apiKey vai na URL (exigência da API), mas é redigida (`***`) em toda mensagem de erro e log.
 - **Erros tipados**: `UmovAuthError` (401), `UmovNotFoundError` (404), `UmovValidationError` (400), `UmovRateLimitError` (429), `UmovApiNotEnabledError` (501), `UmovTimeoutError` (504).
 - **Escaping**: CDATA + `%25`/`%26`, nomes de custom fields com `__`, multi-valores com pipe — tudo automático.
