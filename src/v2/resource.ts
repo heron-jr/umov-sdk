@@ -1,7 +1,7 @@
 import { UmovConfigError } from '../core/errors'
 import type { EntityRef } from '../core/types'
 import type { TransportV2, V2Method } from './transport'
-import type { V2Result } from './types'
+import type { V2IdRef, V2Result } from './types'
 
 /**
  * Endereçamento da v2 (docs/api-v2.md §1):
@@ -13,6 +13,11 @@ export function refToV2Path(ref: EntityRef): string {
   if (typeof ref === 'string') return `alt-id/${encodeURIComponent(ref)}`
   if ('id' in ref) return String(ref.id)
   return `alt-id/${encodeURIComponent(ref.altId)}`
+}
+
+/** Para rotas que só aceitam id interno (`V2IdRef`). */
+export function idOf(ref: V2IdRef): number {
+  return typeof ref === 'number' ? ref : ref.id
 }
 
 export function isAltRef(ref: EntityRef): boolean {

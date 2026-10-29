@@ -3,6 +3,9 @@ import type { RelationRef } from '../core/types'
 /** Referência a outro recurso na v2 (`Entidade de relacionamento`): `{ id }` ou `{ alternativeIdentifier }`. */
 export type V2Ref = RelationRef
 
+/** Operações que a spec só expõe por id interno (sem variante alt-id). */
+export type V2IdRef = number | { id: number }
+
 /** Alguns DTOs da v2 usam enum string no lugar de boolean (activity, section, tag, systemParameters…). */
 export type V2Bool = 'TRUE' | 'FALSE'
 
