@@ -51,10 +51,19 @@ import type {
 } from './resources/types'
 
 import { getToken, type TokenCredentials } from './core/token'
+import { UmovConfigError } from './core/errors'
+import { UmovV2Client, type UmovV2Options } from './v2/client'
 
-export type UmovClientOptions = TransportOptions
+/**
+ * `apiKey` habilita a API v1 (XML); `v2` habilita a API 2.0 (JSON, headers AppId/AppKey).
+ * Pelo menos um dos dois é obrigatório. `fetch`/`logger` do nível raiz valem para a v2 quando ela não os define.
+ */
+export type UmovClientOptions = Omit<TransportOptions, 'apiKey'> & {
+  apiKey?: string
+  v2?: UmovV2Options
+}
 
-export type UmovClientCredentialsOptions = TokenCredentials & Omit<TransportOptions, 'apiKey'>
+export type UmovClientCredentialsOptions = TokenCredentials & Omit<UmovClientOptions, 'apiKey'>
 
 /** Remove create/update da superfície pública de recursos somente leitura. */
 function readOnly<T extends { create: unknown; update: unknown }>(resource: T): Omit<T, 'create' | 'update'> {
@@ -130,9 +139,30 @@ export class UmovClient {
   readonly importLayouts
   readonly exportLayouts
 
+  private readonly v2Client?: UmovV2Client
+
+  /**
+   * API 2.0 (JSON). Só escrita — a v2 não tem GET; leia pelos recursos v1 deste mesmo cliente.
+   * Lança `UmovConfigError` se o cliente foi construído sem `v2: { appId, appKey }`.
+   */
+  get v2(): UmovV2Client {
+    if (!this.v2Client) {
+      throw new UmovConfigError(
+        'credenciais da API 2.0 não configuradas — passe `v2: { appId, appKey }` em UmovClient',
+      )
+    }
+    return this.v2Client
+  }
+
   constructor(options: UmovClientOptions) {
-    if (!options.apiKey) throw new Error('UmovClient: apiKey é obrigatória')
-    const transport = new Transport(options)
+    if (!options.apiKey && !options.v2) {
+      throw new Error('UmovClient: apiKey (v1) ou v2: { appId, appKey } é obrigatório')
+    }
+    if (options.v2) {
+      this.v2Client = new UmovV2Client({ fetch: options.fetch, logger: options.logger, ...options.v2 })
+    }
+    // Sem apiKey o Transport v1 é criado mesmo assim: os recursos existem e lançam UmovConfigError no primeiro uso.
+    const transport = new Transport({ ...options, apiKey: options.apiKey ?? '' })
 
     const simple = (path: string) =>
       defineResource<SimpleEntity, SimpleEntityCreate, SimpleEntityUpdate, SimpleEntityFilters>(transport, { path })

@@ -1,4 +1,4 @@
-import { errorFromStatus, UmovApiError } from './errors'
+import { errorFromStatus, UmovApiError, UmovConfigError } from './errors'
 import { RateLimiter } from './rate-limit'
 
 export interface UmovLogEvent {
@@ -84,7 +84,7 @@ export class Transport {
 
   /** Token nunca aparece em logs/erros. */
   redact(url: string): string {
-    return url.split(this.apiKey).join('***')
+    return this.apiKey ? url.split(this.apiKey).join('***') : url
   }
 
   /**
@@ -116,6 +116,12 @@ export class Transport {
     query?: Record<string, string>,
     body?: string,
   ): Promise<string> {
+    // Cliente construído só com credenciais v2: os recursos v1 existem, mas não têm como autenticar.
+    if (!this.apiKey) {
+      throw new UmovConfigError(
+        'apiKey (API v1) não configurada — passe `apiKey` em UmovClient para usar os recursos XML/v1',
+      )
+    }
     const url = this.buildUrl(path, query)
     const redacted = this.redact(url)
     this.warnPreEncoded(method, redacted, query)

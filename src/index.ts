@@ -37,3 +37,9 @@ export type { MixResource } from './resources/mix'
 export type { ExportLayoutsResource, ImportFilesResource, ImportLayoutsResource } from './resources/files'
 export * from './resources/types'
 export { formatDate, formatDateTime } from './util/datetime'
+
+// API 2.0 (JSON)
+export { UmovV2Client, type UmovV2Options } from './v2/client'
+export type { TransportV2Options, V2Method } from './v2/transport'
+export type { V2Link, V2CreateFn, V2WriteFn, V2DeleteFn } from './v2/resource'
+export * from './v2/types'
