@@ -60,7 +60,8 @@ describe('v2 itineraries', () => {
 
   it('serviceLocals add/remove/patch', async () => {
     await r.itineraries.serviceLocals.add(1, 9)
-    expect(last()).toEqual({ method: 'POST', path: 'itinerary/1/service-local/9', body: undefined })
+    // sem corpo informado o transporte envia {} (a API rejeita corpo vazio em POST)
+    expect(last()).toEqual({ method: 'POST', path: 'itinerary/1/service-local/9', body: {} })
     await r.itineraries.serviceLocals.add('rota2', 'LOJA-1', { treatmentOrder: 2, initialHour: '08:01', finalHour: '10:00' })
     expect(last()).toEqual({
       method: 'POST',

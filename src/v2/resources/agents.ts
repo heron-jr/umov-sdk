@@ -1,4 +1,5 @@
 import type { EntityRef } from '../../core/types'
+import { formatDateTime } from '../../util/datetime'
 import { idOf, refToV2Path, v2Create, v2Delete, v2Link, v2Patch, v2Put, type V2CreateFn, type V2DeleteFn, type V2WriteFn } from '../resource'
 import type { TransportV2 } from '../transport'
 import type { V2AgentAddress, V2CustomField, V2IdRef, V2Image, V2PhoneContact, V2Ref, V2Result } from '../types'
@@ -71,9 +72,12 @@ export interface V2Absence {
   originAgent?: V2Ref
   /** Obrigatório quando `action` = '1' (`field_required:destinationAgent`). */
   destinationAgent?: V2Ref
-  /** date-time ISO. */
-  initialDateTime?: string
-  finalDateTime?: string
+  /**
+   * `yyyy-MM-dd HH:mm:ss` — ISO com `T` é REJEITADO pela API (`field_required`/`bad body message`,
+   * validado em 2026-10-29). `Date` é formatado pelo SDK no fuso local.
+   */
+  initialDateTime?: Date | string
+  finalDateTime?: Date | string
 }
 
 /** `Data object de dados da jornada de trabalho` — /workJourney e /workDayJourney. */
@@ -82,6 +86,7 @@ export interface V2WorkJourney {
   alternativeIdentifier?: string
   description?: string
   active?: boolean
+  /** ATENÇÃO: qualquer valor devolveu `Data integrity violation` na API real (2026-10-29); omita até a uMov corrigir. */
   taskCreationValidation?: 'DONT_VALIDATE' | 'VALIDATE_AND_ASK_CONFIRMATION' | 'VALIDATE_AND_BLOCK'
 }
 
@@ -157,6 +162,13 @@ export interface V2AgentResources {
   passwordPolicies: V2PasswordPoliciesResource
 }
 
+function normalizeAbsence(p: V2Absence): V2Absence {
+  const out = { ...p }
+  if (p.initialDateTime instanceof Date) out.initialDateTime = formatDateTime(p.initialDateTime)
+  if (p.finalDateTime instanceof Date) out.finalDateTime = formatDateTime(p.finalDateTime)
+  return out
+}
+
 export function createAgentResources(t: TransportV2): V2AgentResources {
   const agentActivities = v2Link(t, 'agents', 'activity')
   const workDays = (altId: string) => `workJourney/${refToV2Path({ altId })}/work-days`
@@ -174,9 +186,9 @@ export function createAgentResources(t: TransportV2): V2AgentResources {
       remove: v2Delete(t, 'agentType'),
     },
     absences: {
-      create: v2Create(t, 'absence'),
-      put: v2Put(t, 'absence'),
-      patch: v2Patch(t, 'absence'),
+      create: v2Create(t, 'absence', normalizeAbsence),
+      put: v2Put(t, 'absence', normalizeAbsence),
+      patch: v2Patch(t, 'absence', normalizeAbsence),
     },
     workJourneys: {
       create: v2Create(t, 'workJourney'),

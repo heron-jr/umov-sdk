@@ -36,6 +36,8 @@ describe('v2 agents', () => {
   it('absences create/put/patch', async () => {
     await r.absences.create({ originAgent: { id: 1 }, action: '0', initialDateTime: '2026-11-01T00:00:00', finalDateTime: '2026-11-02T00:00:00' })
     expect(last()).toMatchObject({ method: 'POST', path: 'absence' })
+    await r.absences.create({ originAgent: { id: 1 }, action: '0', initialDateTime: new Date(2030, 0, 1, 8, 0, 0), finalDateTime: '2030-01-01 18:00:00' })
+    expect(last().body).toMatchObject({ initialDateTime: '2030-01-01 08:00:00', finalDateTime: '2030-01-01 18:00:00' })
     await r.absences.put(5, { active: false })
     expect(last()).toMatchObject({ method: 'PUT', path: 'absence/5' })
     await r.absences.patch({ altId: 'AUS-1' }, { description: 'férias' })

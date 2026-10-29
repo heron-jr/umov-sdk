@@ -57,6 +57,25 @@ Consolidado em 2026-10-29. Também lidos: API Routing, Autenticação integrada 
   família `custom_field.*` / `customFieldValue.*` / `customField.*`, `image.*` / `media.image.not_found`.
 - Rate limit: não documentado para a v2. Assumir o mesmo 4 req/s por credencial até prova em contrário.
 
+## 4.1 Validado contra a API real (2026-10-29, ambiente de demonstração)
+
+Comportamentos que a spec **não** documenta e que o SDK já trata ou avisa:
+
+| Observação | Efeito no SDK |
+|---|---|
+| POST/PUT/PATCH **sem corpo** → `400 bad body message` (ex.: `/team/{t}/agent/{a}`) | `TransportV2` envia `{}` quando não há body |
+| Algumas rotas respondem **HTTP 200 com `code: 400`** no envelope (`PATCH /tasks/prioritize` → `error.prioritizeTasks`) | código do envelope ≥ 400 vira o mesmo erro tipado de um HTTP 4xx |
+| `absence.initialDateTime/finalDateTime` só aceitam `yyyy-MM-dd HH:mm:ss`; ISO com `T` falha | `V2Absence` aceita `Date` e formata; documentado |
+| `PUT/PATCH /custom-entity-entry/alt-id/{alt}` exige `customEntityAltId` (ou `customEntityId`) no corpo → senão `custom_entity_required` | documentado em `V2CustomEntityEntry` |
+| `POST /customField/entity/CUSTOM_ENTITY` com `customEntity: { id }` → `404 resource_not_found:id=…`; **só `{ alternativeIdentifier }` funciona** | documentado |
+| `workJourney.taskCreationValidation` com qualquer valor → `Data integrity violation`; omitir funciona | documentado |
+| `DELETE /team/{t}/agents` em equipe já sem membros → **HTTP 500** | nada a fazer; evite chamar duas vezes |
+| `tasks.create` neste ambiente exigiu `taskType`, `customField1`, `customField2` e `activityOriginList: ['4']` + `taskActivities` (configuração do ambiente — `no_default_activity_configured_for`, `field_required:type`, `field_required:filter.customField1`) | depende do ambiente; erros vêm com chaves estáveis |
+| `tasks.transfer` devolve `operationMessages: [{ key: '1' }]` (quantidade transferida) | `V2Result.messages` cru |
+| Atividades **inativas** em vínculos → `404 resource_not_found` (não `400`) | — |
+| `id` do envelope é numérico em todos os creates testados (agentType, local, team, task, itinerary, geocoordinate, entry…) | `V2Result.id: number` |
+| Escrita v2 é visível imediatamente na leitura v1 (`get` por altId) — mesmo `id` nos dois lados | base do padrão "escreve v2 / lê v1" |
+
 ## 5. Inventário de recursos (path → operações)
 
 Legenda: C=POST cria · U=PUT total · P=PATCH parcial · D=DELETE · `{ref}` = `/{id}` e `/alt-id/{altId}`.

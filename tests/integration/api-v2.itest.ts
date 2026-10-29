@@ -42,6 +42,12 @@ describe.skipIf(!appId || !appKey)('integração uMov.me API 2.0', () => {
     expect((err as UmovValidationError).hasKey('field_required')).toBe(true)
   })
 
+  it('HTTP 200 com code 400 no envelope (tasks.prioritize em id inexistente) → UmovValidationError', { timeout: TIMEOUT }, async () => {
+    const err = await v2.tasks.prioritize([{ id: 1, priority: 0 }]).catch((e: unknown) => e)
+    expect(err).toBeInstanceOf(UmovValidationError)
+    expect((err as UmovValidationError).hasKey('error.prioritizeTasks')).toBe(true)
+  })
+
   it('AppKey inválida → UmovAuthError', { timeout: TIMEOUT }, async () => {
     const bad = new UmovV2Client({ appId: appId ?? '', appKey: 'chave-invalida' })
     await expect(bad.agentTypes.create({ description: 'x' })).rejects.toBeInstanceOf(UmovAuthError)

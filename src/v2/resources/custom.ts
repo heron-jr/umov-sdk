@@ -28,6 +28,10 @@ export interface V2CustomEntityDeletion {
 }
 
 /** `CustomEntityEntry` (registro do cadastro customizável) — identifique o dataset por `customEntityId` ou `customEntityAltId`. */
+/**
+ * `CustomEntityEntry`. ATENÇÃO (validado em 2026-10-29): `put`/`patch` por altId exigem `customEntityAltId`
+ * (ou `customEntityId`) no corpo mesmo assim — sem ele a API responde `custom_entity_required`.
+ */
 export interface V2CustomEntityEntry {
   description?: string
   alternativeIdentifier?: string
@@ -78,6 +82,7 @@ export interface V2CustomFieldDefinition {
   lockedEdition?: boolean
   showFilter?: boolean
   /** Dataset de origem do campo (quando o campo pertence a um cadastro customizável). */
+  /** Dataset dono do campo (entidade CUSTOM_ENTITY). Use `{ alternativeIdentifier }` — `{ id }` devolve 404 (validado em 2026-10-29). */
   customEntity?: V2Ref
   /** Campo lista simples/múltipla que tem como origem um dataset. */
   customEntityListReference?: V2Ref

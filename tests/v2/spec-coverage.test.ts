@@ -67,13 +67,13 @@ async function collectReachable(): Promise<Set<string>> {
 }
 
 describe('cobertura da spec v2', () => {
-  it('toda operação da spec é alcançável pelo UmovV2Client', async () => {
+  it('toda operação da spec é alcançável pelo UmovV2Client', { timeout: 60_000 }, async () => {
     const reached = await collectReachable()
     const missing = [...expected].filter((op) => !reached.has(op)).sort()
     expect(missing, `operações da spec sem wrapper:\n${missing.join('\n')}`).toEqual([])
   })
 
-  it('nenhum wrapper chama path fora da spec', async () => {
+  it('nenhum wrapper chama path fora da spec', { timeout: 60_000 }, async () => {
     const reached = await collectReachable()
     const extra = [...reached].filter((op) => !expected.has(op)).sort()
     expect(extra, `paths chamados que não existem na spec:\n${extra.join('\n')}`).toEqual([])

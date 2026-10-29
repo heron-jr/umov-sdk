@@ -91,13 +91,13 @@ export class TransportV2 {
     const url = `${this.baseUrl}/${path.replace(/^\//, '')}`
     const headers: Record<string, string> = { AppId: this.appId, AppKey: this.appKey, Accept: 'application/json' }
     const init: RequestInit = { method, headers }
-    if (body !== undefined) {
-      if (typeof FormData !== 'undefined' && body instanceof FormData) {
-        init.body = body // multipart: o fetch define o boundary no Content-Type
-      } else {
-        headers['Content-Type'] = 'application/json'
-        init.body = JSON.stringify(body)
-      }
+    if (typeof FormData !== 'undefined' && body instanceof FormData) {
+      init.body = body // multipart: o fetch define o boundary no Content-Type
+    } else if (body !== undefined || method !== 'DELETE') {
+      // POST/PUT/PATCH sem corpo: a API responde 400 "bad body message" (validado em /team/{t}/agent/{a}),
+      // então vai `{}`. DELETE segue sem corpo, salvo quando a rota o exige (delete-all, activities/default).
+      headers['Content-Type'] = 'application/json'
+      init.body = JSON.stringify(body ?? {})
     }
 
     const idempotent = method !== 'POST'
@@ -120,7 +120,16 @@ export class TransportV2 {
         throw new UmovApiError(0, { method, url, responseBody: this.redact(String(cause)) }, 'falha de rede/timeout')
       }
 
-      if (res.ok) return parseV2Envelope(res.status, text)
+      if (res.ok) {
+        const envelope = parseV2Envelope(res.status, text)
+        // Algumas rotas (ex.: PATCH /tasks/prioritize) respondem HTTP 200 com `code: 400` no envelope
+        // (validado em 2026-10-29). O código do envelope manda: vira o mesmo erro tipado de um HTTP 400.
+        if (envelope.code >= 400) {
+          this.logger?.({ type: 'error', method, url, status: envelope.code, attempt })
+          throw errorFromStatus(envelope.code, { method, url, responseBody: this.redact(text), messages: envelope.messages })
+        }
+        return envelope
+      }
 
       const retryable = res.status === 429 || (res.status === 504 && idempotent)
       if (retryable && attempt < this.maxRetries) {

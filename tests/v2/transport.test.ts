@@ -60,6 +60,15 @@ describe('TransportV2.request', () => {
     expect((fetchMock.mock.calls[0]![1] as RequestInit).body).toBeUndefined()
   })
 
+  it('POST sem body envia {} (a API rejeita corpo vazio com "bad body message")', async () => {
+    const fetchMock = vi.fn(async (_u: string | URL, _i?: RequestInit) => ok(''))
+    const t = makeTransport(fetchMock as unknown as typeof fetch)
+    await t.post('team/1/agent/2')
+    const init = fetchMock.mock.calls[0]![1] as RequestInit
+    expect(init.body).toBe('{}')
+    expect((init.headers as Record<string, string>)['Content-Type']).toBe('application/json')
+  })
+
   it('400 vira UmovValidationError com messages/keys/hasKey', async () => {
     const body = { code: 400, operationMessages: [{ key: 'field_required:accessRole', value: 'Campo deve ser preenchido' }] }
     const fetchMock = vi.fn(async () => json(body, 400))
@@ -72,6 +81,15 @@ describe('TransportV2.request', () => {
     expect(e.hasKey('field_required:accessRole')).toBe(true)
     expect(e.hasKey('field_req')).toBe(false)
     expect(e.message).toContain('field_required:accessRole')
+  })
+
+  it('HTTP 200 com code 400 no envelope vira UmovValidationError (comportamento real de /tasks/prioritize)', async () => {
+    const body = { code: 400, operationMessages: [{ key: 'error.prioritizeTasks', value: 'Error when priorityzing tasks' }] }
+    const t = makeTransport(vi.fn(async () => json(body, 200)) as unknown as typeof fetch)
+    const err = await t.patch('tasks/prioritize', [{ id: 1 }]).catch((e: unknown) => e)
+    expect(err).toBeInstanceOf(UmovValidationError)
+    expect((err as UmovValidationError).status).toBe(400)
+    expect((err as UmovValidationError).keys).toEqual(['error.prioritizeTasks'])
   })
 
   it('401 → UmovAuthError, 404 → UmovNotFoundError', async () => {
